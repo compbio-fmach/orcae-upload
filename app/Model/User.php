@@ -7,7 +7,7 @@
     public $useTable = 'users';
 
     // attempts to log in the user
-    static function login($username, $password) {
+    public function login($username, $password) {
       // finds a user thorugh username
       $user = $this->find('first', array(
         'conditions' => array('User.username' => $username)

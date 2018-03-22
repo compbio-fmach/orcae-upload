@@ -1,10 +1,13 @@
 <?php
+
+  App::uses('AppController', 'Controller');
+
   // implements API
   class ApiController extends AppController {
 
     // executed before every action is executed
     // set response as API response (no view is displayed)
-    public function beforeFilter()
+    public function beforeFilter() {
       // do not render a view from this controller
       $this->autoRender = false;
     }
