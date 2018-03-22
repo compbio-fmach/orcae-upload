@@ -77,4 +77,12 @@ class PagesController extends AppController {
 			throw new NotFoundException();
 		}
 	}
+
+	// checks for auth and displays default page
+	public function index() {
+		// set correct layout
+		$this->layout = 'orcae-upload';
+		// displays login page
+		$this->display('login');
+	}
 }

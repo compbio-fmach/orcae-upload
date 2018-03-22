@@ -19,17 +19,31 @@
  * @since         CakePHP(tm) v 0.2.9
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
- 
+
 /**
  * Here, we are connecting '/' (base path) to controller called 'Pages',
  * its action called 'display', and we pass a param to select the view file
  * to use (in this case, /app/View/Pages/home.ctp)...
  */
-	Router::connect('/', array('controller' => 'pages', 'action' => 'display', 'home'));
-/**
- * ...and connect the rest of 'Pages' controller's URLs.
- */
-	Router::connect('/pages/*', array('controller' => 'pages', 'action' => 'display'));
+
+  // ROUTES HANDLING
+  // first of all, more specific routes are evaluated (e.g. /API)
+
+  // API ROUTES
+  // login route
+  Router::connect('/API/login', array('controller' => 'auth', 'action' => 'login'));
+  // logout route
+  Router::connect('/API/logout', array('controller' => 'auth', 'action' => 'logout'));
+  // no action defined: api controller index returns 404 by default
+  Router::connect('/API/*', array('controller' => 'api', 'action' => 'index'));
+
+  // PAGES ROUTES
+  // display test page
+	Router::connect('/cakephp', array('controller' => 'pages', 'action' => 'display', 'home'));
+  // display default page
+  Router::connect('/', array('controller' => 'pages', 'action' => 'index'));
+  // display error page not found
+  Router::connect('/*', array('controller' => 'pages', 'action' => 'error'));
 
 /**
  * Load all plugin routes. See the CakePlugin documentation on
