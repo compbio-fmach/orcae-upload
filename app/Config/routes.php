@@ -40,10 +40,12 @@
   // PAGES ROUTES
   // display test page
 	Router::connect('/cakephp', array('controller' => 'pages', 'action' => 'display', 'home'));
-  // display default page
-  Router::connect('/', array('controller' => 'pages', 'action' => 'index'));
   // display error page not found
-  Router::connect('/*', array('controller' => 'pages', 'action' => 'error'));
+  Router::connect('/sessions', array('controller' => 'pages', 'action' => 'sessions'));
+  // display error page not found
+  Router::connect('/configure', array('controller' => 'pages', 'action' => 'configure'));
+  // display default page
+  Router::connect('/*', array('controller' => 'pages', 'action' => 'index'));
 
 /**
  * Load all plugin routes. See the CakePlugin documentation on

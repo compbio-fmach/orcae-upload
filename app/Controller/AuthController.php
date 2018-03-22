@@ -35,7 +35,7 @@
 
       // triggers user login
       $user = $this->User->login($username, $password);
-      if($user) {
+      if($user && !$user['frozen']) {
         // delete pasword from user
         unset($user['password']);
         // set session

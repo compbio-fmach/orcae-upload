@@ -82,7 +82,29 @@ class PagesController extends AppController {
 	public function index() {
 		// set correct layout
 		$this->layout = 'orcae-upload';
-		// displays login page
-		$this->display('login');
+
+		if($this->Session->read('OrcaeUpload.user')) {
+			// TODO display session list if there is at least 1
+			$this->display('sessions');
+		} else {
+			// displays login page
+			$this->display('login');
+		}
+	}
+
+	// shows session tables
+	public function sessions() {
+		// orcae-upload layout
+		$this->layout = 'orcae-upload';
+		// displays sessions page
+		$this->display('sessions');
+	}
+
+	// shows configuration form
+	public function configure() {
+		// orcae-upload layout
+		$this->layout = 'orcae-upload';
+		// displays sessions page
+		$this->display('configure');
 	}
 }
