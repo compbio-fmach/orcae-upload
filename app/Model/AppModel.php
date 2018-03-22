@@ -30,4 +30,6 @@ App::uses('Model', 'Model');
  * @package       app.Model
  */
 class AppModel extends Model {
+  // set the app model to use orcae-upload database by default
+  public $useDbConfig = 'orcae_upload';
 }
