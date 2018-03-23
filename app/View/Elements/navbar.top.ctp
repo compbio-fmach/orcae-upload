@@ -3,7 +3,7 @@
   echo $this->Html->script('logout');
 ?>
 
-<nav class="navbar navbar-expand-lg navbar-light">
+<nav class="navbar navbar-expand-lg navbar-light navbar-top">
 
   <!-- title -->
   <a class="navbar-brand" href="./">ORCAE-upload</a>

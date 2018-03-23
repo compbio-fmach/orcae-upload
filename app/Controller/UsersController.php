@@ -43,10 +43,16 @@
         )
       );
 
+      // extract users array from results
+      // deletes 'User' key
+      foreach($users as &$user) {
+        $user = $user['User'];
+      }
+
       // set response http code as 200 OK
       $this->response->statusCode(200);
       // output found users
-      echo json_encode(compact('users'));
+      echo json_encode($users);
     }
   }
 ?>
