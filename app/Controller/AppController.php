@@ -31,4 +31,14 @@ App::uses('Controller', 'Controller');
  * @link		https://book.cakephp.org/2.0/en/controllers.html#the-app-controller
  */
 class AppController extends Controller {
+
+
+    // checks if a user is authenticated or not
+    protected function auth() {
+      if($this->Session->read('OrcaeUpload.user')) {
+        return true;
+      }
+
+      return false;
+    }
 }

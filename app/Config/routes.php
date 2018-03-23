@@ -34,6 +34,8 @@
   Router::connect('/API/login', array('controller' => 'auth', 'action' => 'login'));
   // logout route
   Router::connect('/API/logout', array('controller' => 'auth', 'action' => 'logout'));
+  // users route
+  Router::connect('/API/users', array('controller' => 'users'));
   // no action defined: api controller index returns 404 by default
   Router::connect('/API/*', array('controller' => 'api', 'action' => 'index'));
 

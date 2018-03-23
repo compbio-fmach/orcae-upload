@@ -5,6 +5,9 @@
   // implements API
   class ApiController extends AppController {
 
+    // models used in this controller
+    public $uses = array('User');
+
     // executed before every action is executed
     // set response as API response (no view is displayed)
     public function beforeFilter() {
@@ -16,5 +19,6 @@
     public function index() {
       $this->response->statusCode(404);
     }
+
   }
 ?>
