@@ -2,10 +2,10 @@
   // set current page title
   $this->assign('title', 'active sessions');
   // set css
-  $this->Html->css('orcae-upload', array('inline' => false));
+  $this->Html->css('sessions', array('inline' => false));
 
   // navbar
-  echo $this->element('navbar.top', array('active' => 'sessions'));
+  echo $this->element('navbar.top', array('current' => 'sessions'));
 ?>
 
 <!-- table -->

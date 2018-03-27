@@ -1,0 +1,37 @@
+/*
+  CSS stylesheet for configuration page (/appView/Pages/configuration.ctp)
+*/
+
+.section-title, .section-paragraph {
+  margin-bottom: 15px;
+}
+
+/*
+  Styling of ace editor in config form
+*/
+.ace-editor {
+  position: relative;
+  height: auto;
+  /*
+    min height should be set congruently to minimum number of lines set in ace editor
+    this way, loading ace editor will not result in page flickering and/or auto-scrolling
+  */
+  min-height: 435px;
+}
+
+/*
+  Styling of image preview
+  NOTE: position relative is required
+*/
+.thumbnail {
+  position: relative;
+  margin-bottom: .5rem;
+  width: 155px;
+  height: 155px;
+}
+.thumbnail > * {
+  border-radius: inherit;
+  position: absolute;
+  width: 100%; height: 100%;
+  left: 0; top: 0;
+}

@@ -15,8 +15,8 @@
 
     <!-- left side -->
     <ul class="navbar-nav">
-      <li class="nav-item <?php if($active == 'sessions') echo 'active'; ?>">
-        <a class="nav-link" href="./sessions">Sessions <?php if($active == 'sessions') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
+      <li class="nav-item <?php if($current == 'sessions') echo 'active'; ?>">
+        <a class="nav-link" href="./sessions">Sessions <?php if($current == 'sessions') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
       </li>
     </ul>
 

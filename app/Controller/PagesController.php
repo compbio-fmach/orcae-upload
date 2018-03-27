@@ -78,12 +78,45 @@ class PagesController extends AppController {
 		}
 	}
 
+	// checks authorization before displaying pages
+	public function beforeFilter() {
+		// pages which requires authentication, stored in for of page name/action
+		// TODO: authrequired pages in config file
+		$authRequired = array('sessions', 'configure', 'upload');
+		// retrieves action
+		$action = $this->request->params['action'];
+
+		// states if a redirect to index is needed
+		$toIndex = false;
+		// checks if user is not currently authenticated
+		if(!$this->auth()) {
+			// checks if requested page needs authentication
+			if(in_array($action, $authRequired)) {
+				$toIndex = true;
+			}
+		}
+		// case user is currently authenticated
+		else {
+			// checks if it is not in pages where authentication is required
+			if(!in_array($action, $authRequired)) {
+				$toIndex = true;
+			}
+		}
+
+		// redirects if required
+		if($toIndex) {
+			// modifies the normal flow, redirects to index
+			$this->request->params['action'] = 'index';
+		}
+	}
+
 	// checks for auth and displays default page
 	public function index() {
-		// set correct layout
-		$this->layout = 'orcae-upload';
 
-		if($this->Session->read('OrcaeUpload.user')) {
+		// set layout to be used in view
+		$this->layout = 'main';
+
+		if($this->auth()) {
 			// TODO display session list if there is at least 1
 			$this->display('sessions');
 		} else {
@@ -94,17 +127,17 @@ class PagesController extends AppController {
 
 	// shows session tables
 	public function sessions() {
-		// orcae-upload layout
-		$this->layout = 'orcae-upload';
+		// set layout to be used in view
+		$this->layout = 'main';
 		// displays sessions page
 		$this->display('sessions');
 	}
 
 	// shows configuration form
 	public function configure() {
-		// orcae-upload layout
-		$this->layout = 'orcae-upload';
-		// displays sessions page
+		// set layout to be used in view
+		$this->layout = 'main';
+		// displays configure page (sobstitutes AddNewGenome.pl prompt)
 		$this->display('configure');
 	}
 }

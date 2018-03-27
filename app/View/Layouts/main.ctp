@@ -27,7 +27,7 @@
 
   <?php
 		// echo $this->Html->meta('icon');
-		// echo $this->Html->css('cake.generic');
+		echo $this->Html->css('main');
 
     // set page custom resources
 		echo $this->fetch('meta');

@@ -1,0 +1,97 @@
+/*
+  Main css stylesheet for orcae-upload
+  Included in every page
+*/
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #f5f5f5;
+}
+
+/*
+  Navbar style
+*/
+nav.navbar {
+  background-color: #fff;
+}
+nav.navbar.navbar-bottom {
+  -webkit-box-shadow: 0 -8px 6px -6px #999;
+  -moz-box-shadow: 0 -8px 6px -6px #999;
+  box-shadow: 0 -8px 6px -6px #999;
+}
+nav.navbar.navbar-top {
+  -webkit-box-shadow: 0 8px 6px -6px #999;
+  -moz-box-shadow: 0 8px 6px -6px #999;
+  box-shadow: 0 8px 6px -6px #999;
+}
+
+/*
+  Main container, usually needs a 100 px or more bottom margin, due to bottom sticky navbar
+*/
+.container.main {
+  margin-top: 15px;
+  margin-bottom: 100px;
+}
+
+/*
+  Custom form styles
+  Radio button
+*/
+/* Customize the label (the container) */
+.custom-radio {
+  display: block;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 0px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+/* Hide the browser's default radio button */
+.custom-radio .input {
+  position: absolute;
+  opacity: 0;
+}
+/* Create a custom radio button */
+.custom-radio .checkmark {
+  position: absolute;
+  top: .25rem;
+  left: 0;
+  height: 1rem;
+  width: 1rem;
+  background-color: #eee;
+  border-radius: 50%;
+}
+/* On mouse-over, add a grey background color */
+.custom-radio:hover input ~ .checkmark {
+  background-color: #ccc;
+}
+/* When the radio button is checked, add a blue background */
+.custom-radio input:checked ~ .checkmark {
+  background-color: #2196F3;
+}
+/* Create the indicator (the dot/circle - hidden when not checked) */
+.custom-radio .checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+/* Show the indicator (dot/circle) when checked */
+.custom-radio input:checked ~ .checkmark:after {
+  display: block;
+}
+/* Style the indicator (dot/circle) */
+.custom-radio .checkmark:after {
+  top: .3rem;
+  left: .3em;
+  width: .4rem;
+  height: .4rem;
+  border-radius: 50%;
+  background: white;
+}
