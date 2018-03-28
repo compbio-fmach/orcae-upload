@@ -23,10 +23,10 @@
     }
 
     // checks if session passed as argument exists
-    public function exists($session) {
+    public function getSession($id) {
 
       // checks if session id can be checked
-      if(!isset($session->id) || empty($session->id)) {
+      if(!isset($id) || empty($id)) {
         return false;
       }
 
@@ -35,7 +35,7 @@
         'first',
         array(
           'conditions' => array(
-            'SessionConfig.id' => $session->id
+            'SessionConfig.id' => $id
           )
         )
       );

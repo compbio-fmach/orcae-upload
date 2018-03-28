@@ -38,12 +38,12 @@
         <div class="section-paragraph">
           <!-- Insert new genome -->
           <label class="custom-radio"> Add new genome to ORCAE
-            <input class="input" type="radio" name="action-choosen" value="new" checked>
+            <input class="input" type="radio" name="type" value="insert" checked>
             <span class="checkmark"></span>
           </label>
           <!-- Update an existent genome -->
           <label class="custom-radio"> Update an already existent genome in ORCAE
-            <input class="input" type="radio" name="action-choosen" value="update">
+            <input class="input" type="radio" name="type" value="update">
             <span class="checkmark"></span>
           </label>
         </div>
@@ -58,7 +58,7 @@
 
         <div class="section-paragraph">
           <label for="species-name">Species' name</label>
-          <input type="text" class="form-control" id="species-name" placeholder="Species' name">
+          <input type="text" class="form-control" id="species-name" name="species_name" placeholder="Species' name">
         </div>
 
         <!-- Multiple columns on one row: uses bootstrap grid -->
@@ -67,13 +67,13 @@
           <!-- NCBI taxid input -->
           <div class="col-md-6 section-paragraph">
             <label for="species-taxid">Species' NCBI taxid</label>
-            <input type="text" class="form-control" id="species-taxid" placeholder="Species' NCBI taxid">
+            <input type="text" class="form-control" id="species-taxid" name="species_taxid" placeholder="Species' NCBI taxid">
           </div>
 
           <!-- Shortname input -->
           <div class="col-md-6 section-paragraph">
             <label for="species5code">Species' short name</label>
-            <input type="text" class="form-control" id="species-5code" placeholder="Species' short name">
+            <input type="text" class="form-control" id="species-5code" name="species_5code" placeholder="Species' short name">
             <small class="text-muted">It is a 5 digits code which represents this species</small>
           </div>
 
@@ -91,7 +91,7 @@
             </div>
             <!-- image selector -->
             <div class="custom-file">
-              <input type="file" class="custom-file-input" id="species-image" accept=".jpg, .png, .gif">
+              <input type="file" class="custom-file-input" id="species-image" name="species_image" accept=".jpg, .png, .gif">
               <label class="custom-file-label" for="species-image">Choose file</label>
             </div>
             <small class="text-muted">Image will be stretched or cropped to fit 155px x 155px.</small>
@@ -107,13 +107,13 @@
 
         <div class="section-paragraph">
           <label for="group-description">Group description</label>
-          <textarea class="form-control" id="group-description" placeholder=""></textarea>
+          <textarea class="form-control" id="group-description" name="group_description" placeholder=""></textarea>
           <small class="text-muted">Enter the description of the group</small>
         </div>
 
         <div class="section-paragraph">
           <label for="group-welcome">Group welcome text</label>
-          <textarea class="form-control" id="group-welcome" rows="5" placeholder=""></textarea>
+          <textarea class="form-control" id="group-welcome" name="group_welcome" rows="5" placeholder=""></textarea>
           <small class="text-muted">Specify the text that will be present on the ORCAE homepage for your species</small>
         </div>
 
@@ -157,6 +157,75 @@
   // functions on document initialization
   $(document).ready(function(){
 
+    /*
+      If button-save gets clicked, session data will be built and sent to /API/sessions
+      to do se, each paragraph is serialized on his own
+      after any serialization, data is added to previously serialized data
+    */
+    $('#button-save').click(function(e){
+      // inizialization of session data to be sent
+      var data = new Array();
+
+      // TODO: get id of current session, if any
+
+      // get current action
+      data = data.concat($('#action-choice').serializeArray());
+
+      // get species info
+      data = data.concat($('#species-info').serializeArray());
+
+      // TODO: get species image along with info
+
+      // get groups info
+      data = data.concat($('#group-info').serializeArray());
+
+      // defines input fields where to find yaml content
+      var yamlFiles = new Array();
+      // post input name => dom input field id
+      yamlFiles['config_bogas'] = 'config-file-bogas';
+      yamlFiles['config_species'] = 'config-file-5code';
+
+      // loops every yaml file and pushes correct key and value to data
+      for (var key in yamlFiles) {
+        var inputName = key;
+        var inputId = yamlFiles[key];
+        // binds yaml editor
+        var editor = ace.edit(inputId);
+        // inserts editor value into data
+        data.push({name: key, value: editor.getValue()});
+      }
+
+      // DEBUG
+      console.log('----- DEBUG DATA -----');
+      console.log(data);
+
+      // sends data to session API
+      $.ajax({
+        method: 'POST',
+        url: './API/sessions',
+        data: data,
+        dataType: 'json',
+        complete: function(xhr, textStatus) {
+          // handles correct response
+          if(xhr.status == '200') {
+            // already json-parsed response
+            console.log(xhr.responseJSON);
+            showResponseAlerts(xhr.responseJSON);
+          }
+          // checks if server refuses to satisfy the request and why
+          else if(xhr.status == '401' || xhr.status == '403') {
+            console.log(xhr.responseJSON);
+            showResponseAlerts(xhr.responseJSON);
+          }
+          // unexpected error
+          else {
+            console.log(xhr.responseText);
+          }
+        }
+      });
+
+    });
+
     //initializes file browsing and image preview for species' image
     $('#species-image').change(function(e){
       // enable correct file name visualization into input field
@@ -188,4 +257,61 @@
     });
 
   });
+
+  /*
+    This function takes in input an object with errors and warnings (which is a response message from /API/sessions POST)
+    First of all, writes error messages into form. While writing error messages it delete warnings with same keys.
+    This is because errors prevents saving values into database and have therefore priority over warnings.
+    Then, remained warnings are written in form.
+  */
+  function showResponseAlerts(response) {
+    // separates response in errors and warnings for better readability
+    var errors = response.errors;
+    var warnings = response.warnings;
+
+    // TODO: delete previously shown alerts
+
+    // cycles through errors
+    for(var key in errors) {
+      // key is the name of the input field
+      var inputName = key;
+      // binds input field
+      var $field = $(".main [name='" + inputName + "']:first");
+
+      $field
+        // finds closest paragraph
+        .closest('.section-paragraph')
+        // adds error class
+        .addClass('error')
+        // adds error as last element of paragraph
+        .append($('<small/>', {
+          class: 'text-danger',
+          text: errors[key]
+        }));
+
+      // deletes warnings already shown as error
+      if(warninsg.hasOwnProperty(key)) {
+        delete warnings[key];
+      }
+    }
+
+    // cycles through remaining warnings
+    for(var key in warnings) {
+      // key is the name of the input field
+      var inputName = key;
+      // binds input field
+      var $field = $(".main [name='" + inputName + "']:first");
+
+      $field
+        // finds closest paragraph
+        .closest('.section-paragraph')
+        // adds warning class
+        .addClass('warning')
+        // adds error as last element of paragraph
+        .append($('<small/>', {
+          class: 'text-warning',
+          text: warnings[key]
+        }));
+    }
+  }
 </script>

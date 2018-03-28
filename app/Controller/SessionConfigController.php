@@ -1,14 +1,15 @@
 <?php
-/*
-  This controller handles sessions API.
-  Session creation is done through POST method. If session id is issued along with other session data,
-  it is conisdered to be the update of an already existent session.
-  Otherwise, a new session will be created using submitted data even if those are not complete (Session can be modified until submitted as an update to orcae).
-*/
+  /*
+    This controller handles sessions API.
+    Session creation is done through POST method. If session id is issued along with other session data,
+    it is conisdered to be the update of an already existent session.
+    Otherwise, a new session will be created using submitted data even if those are not complete (Session can be modified until submitted as an update to orcae).
+  */
+
+  // API controller required
+  App::uses('ApiController', 'Controller');
 
   class SessionConfigController extends ApiController {
-
-    public $components = array('Session');
 
     public $uses = array('SessionConfig');
 
@@ -52,7 +53,7 @@
 
       // checks if it is necessary to insert new session
       // if session id has not been sent, it is set to null. This way, Session->exists(...) can immediately detect it
-      $old_session = $this->SessionConfig->exists($id = (isset($new_session->id) ? $new_session->id : null));
+      $old_session = $this->SessionConfig->getSession($id = (isset($new_session['id']) ? $new_session['id'] : null));
 
       // checks if user can edit session and sets actions to be done
       if($old_session) {
@@ -82,14 +83,16 @@
         // returns errors along with http status 403 forbidden
         $this->response->statusCode(403);
         // send response and exit
-        $this->response->send();
+        $this->response->body(json_encode($message));
         return;
       }
 
       // saves data as defined by insert or update
-      if($this->SessionConfig->save($data)) {
+      if($this->SessionConfig->save($new_session)) {
         // set status as 200 OK
         $this->response->statusCode(200);
+        // returns session id
+        $message['session'] = $this->SessionConfig->id;
       }
       // error while saving data
       else {
@@ -100,7 +103,7 @@
       // set message variable as response body
       $this->response->body(json_encode($message));
       // sends response
-      $this->response->send();
+      //$this->response->send();
     }
 
     // configures data for insertion (new session)
@@ -111,7 +114,7 @@
       // set created and last updated date + time
       $data['created'] = $data['updated'] = date('Y-m-d H:i:s');
       // assigns current user id
-      $data['user_id'] = $this->user->id;
+      $data['user_id'] = $this->user['id'];
 
       // validates data
       $this->validateBeforeSave($message, $data);
@@ -124,9 +127,11 @@
       // set last updated date + time
       $data['updated'] = date('Y-m-d H:i:s');
       // prevents session 'id' field modification
+      /*
       if(isset($data['id'])) {
         unset($data['id']);
       }
+      */
       // prevents 'created' field modification
       if(isset($data['created'])) {
         unset($data['created']);
@@ -184,7 +189,7 @@
       // checks type
       // must be enum('add', 'update')
       $type = isset($data['type']) ? $data['type'] : '';
-      if(!in_array($type, array('add', 'update'))) {
+      if(!in_array($type, array('insert', 'update'))) {
         // this is a blocking error: session type must be of a known type
         $message['errors']['type'] = "Select a valid session type";
       }
