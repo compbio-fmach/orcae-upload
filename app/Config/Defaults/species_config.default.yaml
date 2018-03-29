@@ -2,22 +2,21 @@
 
 # These two lines have informational scope only.
 # They can be edited but will be ovrewritten automatically.
-User:	<username>
-Date:	<today>
+User: <username>
+Date: <today>
 
 #all paths are webserver locations
 SETTINGS:
   ##paths are from webroot onwards (don't forget leading '/' !!)
   Locations:
-    download: '/gdb/trypanosoma'
-    downloadDIR: '/data/gdb/trypanosoma'
-    blast: '/blast/Trpee/orcae_Trpee'
-    wiki: '/wiki/docu.php?do=login&id=Trpee:index'
+    download: "/gdb/trypanosoma"
+    downloadDIR: "/data/gdb/trypanosoma"
+    blast: "/blast/Trpee/orcae_Trpee"
+    wiki: "/wiki/docu.php?do=login&id=Trpee:index"
   Webstarts:
     URL: http://muuaji.psblocal
     GV : 'http://genomeview.org/start/launch.jnlp?--config URL/config.genomeview%20--position%20POSITION%20--url%20URL/gv/GENOME/SEQ.fasta%20URL/gv/GENOME/SEQ.sort.bam.bai%20URL/gv/GENOME/SEQ.junctions.bed%20URL/orcae-ws/gv_ws.pl?'
     jalview : http://bioinformatics.psb.ugent.be/webtools/jalview/
-
   GVsession:  ##this section is not yet in use
     CONFIG : 'http://bioinformatics.psb.ugent.be/orcae/config.genomeview'
     #	LOCATION : 'POSITION'

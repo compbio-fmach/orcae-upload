@@ -2,7 +2,6 @@
 # It is configured to be shown as suggestion when users create new sessions
 # The syntax <...> indicates values to be overwritten (as specified by its content and by the comments)
 
----
 # Substitute <species_shortname> with genome shortname. First char should be upper case.
 # e.g. Trpee
 <species_shortname>:

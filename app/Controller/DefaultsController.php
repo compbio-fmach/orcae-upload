@@ -8,6 +8,15 @@
   App::uses('File', 'Utility');
 
   /*
+    Imports Spyc library for yaml parsing
+    NOTE: in order to rely as less as possible on server configuration,
+    Spyc has been used for yaml-php parsing and vice-versa
+    It is a php-only library, which is slower than php_yaml.dll module
+    but increases portability
+  */
+  App::import('Vendor', 'Spyc', array('file' => 'spyc/Spyc.php'));
+
+  /*
     This controller returns default values.
     NOTE: due to yaml configuration, it needs PECl enabled in php.ini
   */
@@ -18,7 +27,7 @@
       // callback to parent beforeFilter to configure API response
       parent::beforeFilter();
       // callback to parent authentication check
-      //parent::authRequired();
+      parent::authRequired();
     }
 
     public function index() {
@@ -49,25 +58,26 @@
       $file = new File('../Config/Defaults/species_config.default.yaml');
       // reads file (turns file into string)
       $read = $file->read();
-      // TODO parse yaml file
-      $yaml = yaml_parse($read);
 
       // if there was an error while parsing the file
       // returns read, non-parsed, string
-      if(!$yaml) {
+      if(!$read) {
         $this->response->statusCode('500');
-        $this->response->body($read);
         return;
       }
 
+      //print_r($yaml);
+      //return;
+
       // writes out user and data fileds
       // same syntax as Trpee_conf.default.yaml
-      $yaml['User'] = $this->user['username'];
-      $yaml['Date'] = date('d/m/y');
+      $count = 1;
+      $read = str_replace('<username>', '\''.$this->user['username'].'\'', $read, $count);
+      $read = str_replace('<today>', '\''.date('d/m/y').'\'', $read, $count);
 
       // outputs custom yaml file
       $this->response->statusCode('200');
-      $this->response->body(yaml_emit($yaml));
+      $this->response->body($read);
     }
 
     // returns orcae_bogas default yaml file

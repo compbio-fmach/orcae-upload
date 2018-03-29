@@ -198,8 +198,8 @@
       }
 
       // DEBUG
-      console.log('----- DEBUG DATA -----');
-      console.log(data);
+      // console.log('----- DEBUG DATA -----');
+      // console.log(data);
 
       // sends data to session API
       $.ajax({
@@ -262,11 +262,32 @@
     $.ajax({
       method: 'GET',
       // this API returns orcae_bogas default config file
-      url: './API/defaults/orcae_bogas',
+      url: './API/defaults?file=orcae_bogas',
       complete: function(xhr, textStatus) {
         if(xhr.status == 200) {
           // binds editor field
-          var editor = ace.edit($('#'))
+          var editor = ace.edit($('#config-file-bogas').get(0));
+          // puts returned default value into editor field
+          // the second parameter indicates position of the cursor (-1 = at the top of the editor)
+          editor.setValue(xhr.responseText, -1);
+        }
+
+        // TODO: else
+      }
+    });
+
+    // sets default values for orcae_species yaml file
+    $.ajax({
+      method: 'GET',
+      // this API returns orcae_bogas default config file
+      url: './API/defaults?file=species_config',
+      complete: function(xhr, textStatus) {
+        if(xhr.status == 200) {
+          // binds editor field
+          var editor = ace.edit($('#config-file-5code').get(0));
+          // puts returned default value into editor field
+          // the second parameter indicates position of the cursor (-1 = at the top of the editor)
+          editor.setValue(xhr.responseText, -1);
         }
 
         // TODO: else
