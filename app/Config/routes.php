@@ -39,6 +39,8 @@
   // Sessions routes
   // binding data insertion
   Router::connect('/API/sessions', array('controller' => 'sessionConfig', 'action' => 'insertOrUpdate', '[method]' => 'POST'));
+  // default values API
+  Router::connect('/API/defaults', array('controller' => 'defaults', 'action' => 'index'));
   // no action defined: api controller index returns 404 by default
   Router::connect('/API/*', array('controller' => 'api', 'action' => 'index'));
 

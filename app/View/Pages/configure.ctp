@@ -154,6 +154,8 @@
 <!-- Script for this page only -->
 <script type="text/javascript">
 
+  var sessionId = undefined;
+
   // functions on document initialization
   $(document).ready(function(){
 
@@ -254,6 +256,21 @@
           minLines: 30,
           maxLines: Infinity
       });
+    });
+
+    // sets default values for orcae_bogas yaml file
+    $.ajax({
+      method: 'GET',
+      // this API returns orcae_bogas default config file
+      url: './API/defaults/orcae_bogas',
+      complete: function(xhr, textStatus) {
+        if(xhr.status == 200) {
+          // binds editor field
+          var editor = ace.edit($('#'))
+        }
+
+        // TODO: else
+      }
     });
 
   });

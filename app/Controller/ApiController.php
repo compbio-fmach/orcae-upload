@@ -25,5 +25,17 @@
       $this->response->statusCode(404);
     }
 
+    // checks authentication
+    // if user is not authenticated: stops execution flow and returns 401 unauthorized
+    public function authRequired() {
+      if(!$this->auth()) {
+        // response is 403 unauthorized in this case
+        $this->response->statusCode(401);
+        $this->response->send();
+        // exits execution flow
+        die();
+      }
+    }
+
   }
 ?>

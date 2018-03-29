@@ -1,0 +1,30 @@
+# Default orcae_config.yaml section
+# It is configured to be shown as suggestion when users create new sessions
+# The syntax <...> indicates values to be overwritten (as specified by its content and by the comments)
+
+---
+# Substitute <species_shortname> with genome shortname. First char should be upper case.
+# e.g. Trpee
+<species_shortname>:
+  current:
+    current_release: 1
+    # Database which will host genome's data
+    # it is composed by orcae_ + species shortname (lower case)
+    # e.g. orcae_trpee
+    database: orcae_<species_shortname>
+    # Database description
+    description: develop
+    # Database hostname
+    hostname: localhost
+    # Default port for mysql
+    port: 3306
+    # Database username and password
+    username: <mysql_username>
+    password: <mysql_password>
+    # This genome's versions
+    major_version: 4
+    minor_version: 1
+    # Security level of this genome [delevop|public|private]
+    security: develop
+    source: EGN3.x
+    start_locus: Esi0000_0015
