@@ -31,13 +31,6 @@ App::uses('AppController', 'Controller');
 class PagesController extends AppController {
 
 /**
- * This controller does not use a model
- *
- * @var array
- */
-	public $uses = array();
-
-/**
  * Displays a view
  *
  * @return CakeResponse|null
@@ -78,66 +71,81 @@ class PagesController extends AppController {
 		}
 	}
 
-	// checks authorization before displaying pages
-	public function beforeFilter() {
-		// pages which requires authentication, stored in for of page name/action
-		// TODO: authrequired pages in config file
-		$authRequired = array('sessions', 'configure', 'upload');
-		// retrieves action
-		$action = $this->request->params['action'];
-
-		// states if a redirect to index is needed
-		$toIndex = false;
-		// checks if user is not currently authenticated
+	/*
+	* Handles page authorization.
+	* If user is not authorized, renders login page.
+	* Then, id dies to stop flow execution.
+	*/
+	public function authRequired() {
 		if(!$this->auth()) {
-			// checks if requested page needs authentication
-			if(in_array($action, $authRequired)) {
-				$toIndex = true;
-			}
-		}
-		// case user is currently authenticated
-		else {
-			// checks if it is not in pages where authentication is required
-			if(!in_array($action, $authRequired)) {
-				$toIndex = true;
-			}
+			// selects page to be rendered
+			$this->login();
+			// tells default value has been selected
+			return false;
 		}
 
-		// redirects if required
-		if($toIndex) {
-			// modifies the normal flow, redirects to index
-			$this->request->params['action'] = 'index';
-		}
+		return true;
 	}
 
-	// checks for auth and displays default page
+	/*
+	* Handles default page.
+	* If user is authenticated: shows
+	*/
 	public function index() {
-
-		// set layout to be used in view
+		// sets correct layout
 		$this->layout = 'main';
 
+		// case user is authenticated
+		// sessions is default page in this case
 		if($this->auth()) {
-			// TODO display session list if there is at least 1
 			$this->display('sessions');
-		} else {
-			// displays login page
+		}
+		// case user is not authenticated
+		// login is default page in this case
+		else {
 			$this->display('login');
 		}
 	}
 
-	// shows session tables
-	public function sessions() {
-		// set layout to be used in view
+	/*
+	* Displays login page
+	*/
+	public function login() {
+		// sets correct layout
 		$this->layout = 'main';
-		// displays sessions page
-		$this->display('sessions');
+
+		// checks if user is authenticated
+		if($this->auth()) {
+			// if user is authenticated, renders login page
+			$this->display('sessions');
+		}
+		// renders login page
+		else {
+			$this->display('login');
+		}
 	}
 
-	// shows configuration form
-	public function configure() {
-		// set layout to be used in view
-		$this->layout = 'main';
-		// displays configure page (sobstitutes AddNewGenome.pl prompt)
-		$this->display('configure');
+	public function sessions() {
+		// checks if user is authenticated
+		if($this->authRequired()) {
+			// sets correct layout
+			$this->layout = 'main';
+			// renders sessions page
+			$this->display('sessions');
+		}
+	}
+
+	public function sessionConfig() {
+		// checks if user is authenticated
+		if($this->authRequired()) {
+			// retrieves session id if any
+			$id = isset($this->request->params['id']) ? $this->request->params['id'] : null;
+			// set session id for config page
+			$this->set('id', $id);
+			// sets correct layout
+			$this->layout = 'main';
+			// renders session config page
+			$this->display('session_config');
+		}
 	}
 }

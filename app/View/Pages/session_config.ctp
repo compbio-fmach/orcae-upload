@@ -5,7 +5,7 @@
   // set current page title
   $this->assign('title', 'Configure genome');
   // set css
-  $this->Html->css('configure', array('inline' => false));
+  $this->Html->css('session_config', array('inline' => false));
 
   // set js libraries
   $this->Html->script('file-handler', array('inline' => false));
@@ -17,13 +17,16 @@
   $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', array('inline' => false));
 
   // navbar top
-  echo $this->element('navbar.top', array('current' => 'configure'));
+  echo $this->element('navbar.top', array('current' => 'config'));
 ?>
 
 <!-- main container -->
 <div class="container main">
 
   <!-- There is the main form of this page. It is composed of many sections (forms or divs). Ervery section has its own form to be serialized trough js -->
+
+  <!-- This is the id of the session given by the server -->
+  <input id='session-id' type='hidden' name="id" value='<?php echo $id; ?>'>
 
   <!-- set form in center column -->
   <div class="row">
@@ -87,7 +90,7 @@
             <!-- image preview -->
             <div class="thumbnail rounded">
               <div class="bg-secondary"></div>
-              <img src="..." alt="">
+              <img src="#" alt="">
             </div>
             <!-- image selector -->
             <div class="custom-file">
@@ -148,85 +151,66 @@
 
 <?php
   // bottom navbar
-  echo $this->element('navbar.bottom', array('current' => 'configure'));
+  echo $this->element('navbar.bottom', array('page' => 'config'));
 ?>
 
 <!-- Script for this page only -->
 <script type="text/javascript">
 
+  // initializes session id
   var sessionId = undefined;
+
+  // defines root url
+  var webRoot = <?php echo $this->webroot; ?>;
 
   // functions on document initialization
   $(document).ready(function(){
+
+    // retrieves session id passed by server
+    sessionId = $('#session-id').val();
+
+    // checks if valid sessionId
+    if(sessionId) {
+      /*
+      * Initializes session values if sessionId is bound to any session
+      * @return {session, warnings, errors}
+      * @return session is the session object
+      * @return warnings are warnings returned by server (e.g. values saved but not valid)
+      * @return errors are arrors returned by the server (should be empty)
+      */
+      $.ajax({
+        url: webRoot + 'API/sessions/' + sessionId + '/config',
+        method: 'GET',
+        dataType: 'json',
+        complete: function(xhr, textStatus) {
+          if(!xhr.status == '200') {
+            // TODO: handle other codes
+          }
+
+          console.log(xhr.responseText);
+
+          // initializes session values
+          initConfig(xhr.responseJSON.session);
+
+          // shows warnings
+          showConfigAlerts(xhr.responseJSON);
+
+          // shows container
+          $('.main.container').fadeIn('slow');
+        }
+      });
+    }
+    else {
+      // shows container
+      $('.main.container').fadeIn('slow');
+    }
 
     /*
       If button-save gets clicked, session data will be built and sent to /API/sessions
       to do se, each paragraph is serialized on his own
       after any serialization, data is added to previously serialized data
     */
-    $('#button-save').click(function(e){
-      // inizialization of session data to be sent
-      var data = new Array();
-
-      // TODO: get id of current session, if any
-
-      // get current action
-      data = data.concat($('#action-choice').serializeArray());
-
-      // get species info
-      data = data.concat($('#species-info').serializeArray());
-
-      // TODO: get species image along with info
-
-      // get groups info
-      data = data.concat($('#group-info').serializeArray());
-
-      // defines input fields where to find yaml content
-      var yamlFiles = new Array();
-      // post input name => dom input field id
-      yamlFiles['config_bogas'] = 'config-file-bogas';
-      yamlFiles['config_species'] = 'config-file-5code';
-
-      // loops every yaml file and pushes correct key and value to data
-      for (var key in yamlFiles) {
-        var inputName = key;
-        var inputId = yamlFiles[key];
-        // binds yaml editor
-        var editor = ace.edit(inputId);
-        // inserts editor value into data
-        data.push({name: key, value: editor.getValue()});
-      }
-
-      // DEBUG
-      // console.log('----- DEBUG DATA -----');
-      // console.log(data);
-
-      // sends data to session API
-      $.ajax({
-        method: 'POST',
-        url: './API/sessions',
-        data: data,
-        dataType: 'json',
-        complete: function(xhr, textStatus) {
-          // handles correct response
-          if(xhr.status == '200') {
-            // already json-parsed response
-            console.log(xhr.responseJSON);
-            showResponseAlerts(xhr.responseJSON);
-          }
-          // checks if server refuses to satisfy the request and why
-          else if(xhr.status == '401' || xhr.status == '403') {
-            console.log(xhr.responseJSON);
-            showResponseAlerts(xhr.responseJSON);
-          }
-          // unexpected error
-          else {
-            console.log(xhr.responseText);
-          }
-        }
-      });
-
-    });
+    $('#button-save').click(clickSave);
 
     //initializes file browsing and image preview for species' image
     $('#species-image').change(function(e){
@@ -258,8 +242,9 @@
       });
     });
 
-    // sets default values for orcae_bogas yaml file
-    $.ajax({
+    /*
+      // sets default values for orcae_bogas yaml file
+      $.ajax({
       method: 'GET',
       // this API returns orcae_bogas default config file
       url: './API/defaults?file=orcae_bogas',
@@ -275,9 +260,11 @@
         // TODO: else
       }
     });
+    */
 
-    // sets default values for orcae_species yaml file
-    $.ajax({
+    /*
+      // sets default values for orcae_species yaml file
+      $.ajax({
       method: 'GET',
       // this API returns orcae_bogas default config file
       url: './API/defaults?file=species_config',
@@ -293,8 +280,25 @@
         // TODO: else
       }
     });
+    */
 
   });
+
+  /*
+  * Initializes input form if session is set (retrieved from id)
+  */
+  function initConfig(session) {
+    // sets particular values in form
+    // deletes aready shown values from array
+
+    // returned value is a session
+    // values are in format form_field => value
+    console.log('----- SESSION ATTRIBUTES -----');
+    for(var attr in session) {
+      console.log(attr);
+      $('[name=\'' + attr + '\']').val(session[attr]);
+    }
+  }
 
   /*
     This function takes in input an object with errors and warnings (which is a response message from /API/sessions POST)
@@ -302,12 +306,22 @@
     This is because errors prevents saving values into database and have therefore priority over warnings.
     Then, remained warnings are written in form.
   */
-  function showResponseAlerts(response) {
+  function showConfigAlerts(response) {
     // separates response in errors and warnings for better readability
     var errors = response.errors;
     var warnings = response.warnings;
 
     // TODO: delete previously shown alerts
+    // deletes previously shown alerts
+    $('.section-paragraph.warning, .section-paragraph.error').each(function(i){
+      // removes warnings texts
+      $(this).find('small.text-danger, small.text-warning').each(function(e){
+        $(this).remove();
+      });
+
+      // removes warnings styles
+      $(this).removeClass('warning error');
+    });
 
     // cycles through errors
     for(var key in errors) {
@@ -351,5 +365,76 @@
           text: warnings[key]
         }));
     }
+  }
+
+  /*
+    Handles click of save button.
+    Sends an ajax POST request to edit session API
+    Handles return data, shows alerts and errors
+  */
+  function clickSave(event) {
+    // inizialization of session data to be sent
+    var data = new Array();
+
+    // TODO: get id of current session, if any
+
+    // get current action
+    data = data.concat($('#action-choice').serializeArray());
+
+    // get species info
+    data = data.concat($('#species-info').serializeArray());
+
+    // TODO: get species image along with info
+
+    // get groups info
+    data = data.concat($('#group-info').serializeArray());
+
+    // defines input fields where to find yaml content
+    var yamlFiles = new Array();
+    // post input name => dom input field id
+    yamlFiles['config_bogas'] = 'config-file-bogas';
+    yamlFiles['config_species'] = 'config-file-5code';
+
+    // loops every yaml file and pushes correct key and value to data
+    for (var key in yamlFiles) {
+      var inputName = key;
+      var inputId = yamlFiles[key];
+      // binds yaml editor
+      var editor = ace.edit(inputId);
+      // inserts editor value into data
+      data.push({name: key, value: editor.getValue()});
+    }
+
+    // defines API url
+    var url = webRoot + 'API/sessions';
+    if(sessionId) {
+      url = url + '/' + sessionId;
+    }
+    url = url + '/config';
+
+    // sends data to session API
+    $.ajax({
+      method: 'POST',
+      url: url,
+      data: data,
+      dataType: 'json',
+      complete: function(xhr, textStatus) {
+        // handles correct response
+        if(xhr.status == '200') {
+          // already json-parsed response
+          console.log(xhr.responseJSON);
+          showConfigAlerts(xhr.responseJSON);
+        }
+        // checks if server refuses to satisfy the request and why
+        else if(xhr.status == '401' || xhr.status == '403') {
+          console.log(xhr.responseJSON);
+          showConfigAlerts(xhr.responseJSON);
+        }
+        // unexpected error
+        else {
+          console.log(xhr.responseText);
+        }
+      }
+    });
   }
 </script>

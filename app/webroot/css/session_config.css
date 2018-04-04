@@ -2,10 +2,17 @@
   CSS stylesheet for configuration page (/appView/Pages/configuration.ctp)
 */
 
+.container.main {
+  display: none;
+}
+
 .section-title, .section-paragraph {
   margin-bottom: 15px;
 }
 
+#button-save {
+  margin-top: 30px;
+}
 /*
   Styling of ace editor in config form
 */
@@ -57,4 +64,11 @@
 .section-paragraph.warning textarea:focus {
   border-color: #ffc107;
   box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+/*
+* <small> is set to be displayed as block to force newline
+*/
+.section-paragraph small {
+  display: block !important;
 }

@@ -24,16 +24,16 @@
     <input type="password" id="inputPassword" class="form-control" name="password" placeholder="Password" required>
   </div>
 
-  <div class="checkbox mb-3">
+  <!-- <div class="checkbox mb-3">
     <label>
       <input type="checkbox" name="remember-me" value="remember-me"> Remember me
     </label>
-  </div>
+  </div> -->
 
   <!-- error message conteiner -->
   <div id="message-signin" class="mb-3 text-center" style="display:none;"></div>
 
-  <button id="btn-signin" class="btn btn-lg btn-primary btn-block" type="button" onclick="login()">Sign in</button>
+  <button id="btn-signin" class="btn btn-lg btn-primary btn-block" type="button" onclick="login(<?php echo $this->webroot; ?>)">Sign in</button>
   <!-- <p class="mt-5 mb-3 text-muted text-center">&copy; 2017-2018</p> -->
   <p class="mt-5 mb-3 text-muted text-center">Forgot username or password? <a href='#'>Check out ORCAE</a></p>
 </form>

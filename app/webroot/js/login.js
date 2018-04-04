@@ -4,7 +4,7 @@
 // sends an ajax request to /API/login
 // reloads page if successfull
 // shows error otherwise
-function login() {
+function login(webRoot) {
   // retrieves form elements
   var $form = $('#form-signin'); // form
   var $message = $form.find('#message-signin'); // message container
@@ -15,9 +15,13 @@ function login() {
     // request to /API/login
     $.ajax({
       method: 'POST',
-      url: './API/login',
+      url: webRoot + 'API/login',
       data: $form.serializeArray(),
       complete: function(xhr, textStatus) {
+        // DEBUG
+        console.log('----- LOGIN DATA -----');
+        console.log($form.serializeArray());
+
         // if status equals 204, reload page
         if(xhr.status == '204') {
           location.reload();
@@ -36,6 +40,6 @@ function login() {
         }
       }
     });
-    
+
   });
 }

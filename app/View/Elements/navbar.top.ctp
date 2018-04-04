@@ -16,14 +16,14 @@
     <!-- left side -->
     <ul class="navbar-nav">
       <li class="nav-item <?php if($current == 'sessions') echo 'active'; ?>">
-        <a class="nav-link" href="./sessions">Sessions <?php if($current == 'sessions') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
+        <a class="nav-link" href="<?php echo $this->webroot.'sessions'; ?>">Sessions <?php if($current == 'sessions') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
       </li>
     </ul>
 
     <!-- right side -->
     <ul class="navbar-nav ml-auto">
       <li class="nav-item">
-        <a class="nav-link" onclick="logout()" style="cursor:pointer;">Logout</a>
+        <a class="nav-link" onclick="logout(<?php echo $this->webroot; ?>)" style="cursor:pointer;">Logout</a>
       </li>
     </ul>
   </div>

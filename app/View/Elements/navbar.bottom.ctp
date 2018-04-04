@@ -4,12 +4,12 @@
     <!-- left side -->
     <ul class="navbar-nav mr-auto">
       <li class="nav-item">
-        <a class="nav-link text-primary" href="./configure">&larr; <u>Genome configuration</u></a>
+        <a class="nav-link text-primary" href="./config">&larr; <u>Genome configuration</u></a>
       </li>
     </ul>
     <?php endif; ?>
 
-    <?php if($page == 'configure'): ?>
+    <?php if($page == 'config'): ?>
     <!-- right side -->
     <ul class="navbar-nav ml-auto">
       <li class="nav-item">

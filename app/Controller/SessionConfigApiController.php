@@ -9,7 +9,7 @@
   // API controller required
   App::uses('ApiController', 'Controller');
 
-  class SessionConfigController extends ApiController {
+  class SessionConfigApiController extends ApiController {
 
     public $uses = array('SessionConfig');
 
@@ -19,13 +19,63 @@
     function beforeFilter() {
       // triggers parent filtering to correctly initialize API controller
       parent::beforeFilter();
+      // authorization required
+      parent::authRequired();
+    }
 
-      if(!$this->auth()) {
-        // response is 403 unauthorized in this case
-        $this->response->statusCode(401);
-        $this->response->send();
-        // exits execution flow
-        die();
+    /*
+      This route retrieves session active for current user.
+      @param id refers to session id.
+      If no session Id is passed, it retrieves every session currently cative for current user.
+    */
+    public function view() {
+      // retrieves session id, if any
+      $id = isset($this->request->params['id']) ? $this->request->params['id'] : null;
+      // defines if it is required to
+      $searchAll = empty($id);
+
+      // case every session must be returned
+      if($searchAll) {
+        $results = $this->SessionConfig->getSessions($this->user);
+
+        // for every result, sets dates in human-format
+        foreach($results as &$result) {
+          // changes date format
+          $result['created'] = date('d/m/Y', strtotime($result['created']));
+          $result['updated'] = date('d/m/Y', strtotime($result['updated']));
+        }
+
+        // returns 200 OK in any case
+        $this->response->statusCode(200);
+        $this->response->body(json_encode($results));
+      }
+      // case single session must be returned
+      else {
+        $result = $this->SessionConfig->getSession($id, $this->user);
+
+        // returns 404 if session not found
+        if(!$result) {
+          $this->response->statusCode(404);
+          $this->response->send();
+        }
+        // returns 200 OK otherwise
+        else {
+          // defines response structure
+          $response = array(
+            'session' => array(),
+            'errors' => array(),
+            'warnings' => array()
+          );
+
+          // add warnings to response
+          $this->validateSession($response, $result);
+
+          // sets data into session
+          $response['session'] = $result;
+
+          $this->response->statusCode(200);
+          $this->response->body(json_encode($response));
+        }
       }
     }
 
@@ -34,7 +84,7 @@
       If it is valid, triggers session update.
       If it is not valid, triggers new session creation.
     */
-    public function insertOrUpdate() {
+    public function edit() {
 
       // initializes return session
       $session = null;
@@ -53,10 +103,14 @@
 
       // checks if it is necessary to insert new session
       // if session id has not been sent, it is set to null. This way, Session->exists(...) can immediately detect it
-      $old_session = $this->SessionConfig->getSession($id = (isset($new_session['id']) ? $new_session['id'] : null));
+      $id = (isset($this->request->params['id']) ? $this->request->params['id'] : null);
+
+      $old_session = $this->SessionConfig->getSession($id, $this->user);
 
       // checks if user can edit session and sets actions to be done
       if($old_session) {
+        // sets new session id as new session id
+        $new_session['id'] = $old_session['id'];
         // checks authorization using previously initialized user stored in session
         // (it must be set here, it has been checked in beforeFilter)
         if($this->SessionConfig->auth($old_session, $this->user)) {
@@ -117,7 +171,7 @@
       $data['user_id'] = $this->user['id'];
 
       // validates data
-      $this->validateBeforeSave($message, $data);
+      $this->validateSession($message, $data);
 
       // TODO: set custom warnings for insert
     }
@@ -142,7 +196,7 @@
       }
 
       // validates data
-      $this->validateBeforeSave($message, $data);
+      $this->validateSession($message, $data);
 
       // TODO: set custom warnings for update
     }
@@ -156,7 +210,7 @@
       Warnings are not blocking: they do not modify http header status.
       Warnings means you can save this value as is, but you must resolve it before updating orcae with saved session.
     */
-    protected function validateBeforeSave(&$message, &$data) {
+    protected function validateSession(&$message, &$data) {
 
       // validates species name length
       $speciesName = isset($data['species_name']) ? $data['species_name'] : '';

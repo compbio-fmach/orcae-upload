@@ -20,39 +20,40 @@
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 
-/**
- * Here, we are connecting '/' (base path) to controller called 'Pages',
- * its action called 'display', and we pass a param to select the view file
- * to use (in this case, /app/View/Pages/home.ctp)...
- */
-
   // ROUTES HANDLING
   // first of all, more specific routes are evaluated (e.g. /API)
 
   // API ROUTES
   // login route
-  Router::connect('/API/login', array('controller' => 'auth', 'action' => 'login'));
+  Router::connect('/API/login', array('controller' => 'AuthApi', 'action' => 'login'));
   // logout route
-  Router::connect('/API/logout', array('controller' => 'auth', 'action' => 'logout'));
-  // users route
-  //Router::connect('/API/users', array('controller' => 'users'));
-  // Sessions routes
-  // binding data insertion
-  Router::connect('/API/sessions', array('controller' => 'sessionConfig', 'action' => 'insertOrUpdate', '[method]' => 'POST'));
-  // default values API
-  Router::connect('/API/defaults', array('controller' => 'defaults', 'action' => 'index'));
+  Router::connect('/API/logout', array('controller' => 'AuthApi', 'action' => 'logout'));
+  // insert new session configuration
+  Router::connect('/API/sessions/config', array('controller' => 'SessionConfigApi', 'action' => 'edit', '[method]' => 'POST'));
+  // retireves all sessions configurations
+  Router::connect('/API/sessions/config', array('controller' => 'SessionConfigApi', 'action' => 'view', '[method]' => 'GET'));
+  // edit already existent session configuration
+  Router::connect('/API/sessions/:id/config', array('controller' => 'SessionConfigApi', 'action' => 'edit', '[method]' => 'POST'));
+  // retrieves already existent session configuration
+  Router::connect('/API/sessions/:id/config', array('controller' => 'SessionConfigApi', 'action' => 'view', '[method]' => 'GET'));
+  // returns default values
+  Router::connect('/API/sessions/config/default', array('controller' => 'SessionConfigApi', 'action' => 'default', '[method]' => 'GET'));
   // no action defined: api controller index returns 404 by default
-  Router::connect('/API/*', array('controller' => 'api', 'action' => 'index'));
+  Router::connect('/API/*', array('controller' => 'Api', 'action' => 'index'));
 
   // PAGES ROUTES
-  // display test page
-	Router::connect('/cakephp', array('controller' => 'pages', 'action' => 'display', 'home'));
-  // display error page not found
-  Router::connect('/sessions', array('controller' => 'pages', 'action' => 'sessions'));
-  // display error page not found
-  Router::connect('/configure', array('controller' => 'pages', 'action' => 'configure'));
-  // display default page
-  Router::connect('/*', array('controller' => 'pages', 'action' => 'index'));
+  // displays test page
+	Router::connect('/cakephp', array('controller' => 'Pages', 'action' => 'display', 'home'));
+  // renders login page
+  Router::connect('/login', array('controller' => 'Pages', 'action' => 'login'));
+  // renders session bound to passed id
+  Router::connect('/sessions/:id/config', array('controller' => 'Pages', 'action' => 'sessionConfig'));
+  // renders empty session form (used for new session configuration creation)
+  Router::connect('/sessions/config', array('controller' => 'Pages', 'action' => 'sessionConfig'));
+  // renders sessions overview
+  Router::connect('/sessions', array('controller' => 'Pages', 'action' => 'sessions'));
+  // displays default page
+  Router::connect('/*', array('controller' => 'Pages', 'action' => 'index'));
 
 /**
  * Load all plugin routes. See the CakePlugin documentation on

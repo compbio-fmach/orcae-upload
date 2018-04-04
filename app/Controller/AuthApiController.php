@@ -3,7 +3,7 @@
   App::uses('ApiController', 'Controller');
 
   // AuthController is responsible for login and logout related tasks
-  class AuthController extends ApiController {
+  class AuthApiController extends ApiController {
 
     // components used in this controller
     public $components = array('Session', 'Cookie');
