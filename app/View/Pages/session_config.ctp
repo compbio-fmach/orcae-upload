@@ -18,6 +18,7 @@
 
   // navbar top
   echo $this->element('navbar.top', array('current' => 'config'));
+
 ?>
 
 <!-- main container -->
@@ -90,11 +91,11 @@
             <!-- image preview -->
             <div class="thumbnail rounded">
               <div class="bg-secondary"></div>
-              <img src="#" alt="">
+              <img src="<?php echo $this->webroot.'img/species_images/species_image_'.$id.'.jpeg'; ?>" alt="">
             </div>
             <!-- image selector -->
             <div class="custom-file">
-              <input type="file" class="custom-file-input" id="species-image" name="species_image" accept=".jpg, .png, .gif">
+              <input type="file" class="custom-file-input" id="species-image" name="species_image" accept=".jpg">
               <label class="custom-file-label" for="species-image">Choose file</label>
             </div>
             <small class="text-muted">Image will be stretched or cropped to fit 155px x 155px.</small>
@@ -106,7 +107,7 @@
       <!-- This section handles user admin rights, messages and group-related things -->
       <form class="section" id="group-info">
 
-        <h4 class="section-title">Handle group and access rights</h4>
+        <h4 class="section-title">Handle group configuration</h4>
 
         <div class="section-paragraph">
           <label for="group-description">Group description</label>
@@ -200,7 +201,44 @@
         }
       });
     }
+
+    // case no session id already set
     else {
+
+      // sets default values for orcae_bogas yaml file
+      $.ajax({
+        method: 'GET',
+        // this API returns orcae_bogas default config file
+        url: webRoot + 'API/defaults?file=config_orcae',
+        complete: function(xhr, textStatus) {
+          if(xhr.status == 200) {
+            // binds editor field
+            var editor = ace.edit($('#config-file-bogas').get(0));
+            // puts returned default value into editor field
+            // the second parameter indicates position of the cursor (-1 = at the top of the editor)
+            editor.setValue(xhr.responseText, -1);
+          }
+          // TODO: else
+        }
+      });
+
+      // sets default values for orcae_species yaml file
+      $.ajax({
+        method: 'GET',
+        // this API returns orcae_bogas default config file
+        url: webRoot + 'API/defaults?file=config_species',
+        complete: function(xhr, textStatus) {
+          if(xhr.status == 200) {
+            // binds editor field
+            var editor = ace.edit($('#config-file-5code').get(0));
+            // puts returned default value into editor field
+            // the second parameter indicates position of the cursor (-1 = at the top of the editor)
+            editor.setValue(xhr.responseText, -1);
+          }
+          // TODO: else
+        }
+      });
+
       // shows container
       $('.main.container').fadeIn('slow');
     }
@@ -242,45 +280,8 @@
       });
     });
 
-    /*
-      // sets default values for orcae_bogas yaml file
-      $.ajax({
-      method: 'GET',
-      // this API returns orcae_bogas default config file
-      url: './API/defaults?file=orcae_bogas',
-      complete: function(xhr, textStatus) {
-        if(xhr.status == 200) {
-          // binds editor field
-          var editor = ace.edit($('#config-file-bogas').get(0));
-          // puts returned default value into editor field
-          // the second parameter indicates position of the cursor (-1 = at the top of the editor)
-          editor.setValue(xhr.responseText, -1);
-        }
-
-        // TODO: else
-      }
-    });
-    */
-
-    /*
-      // sets default values for orcae_species yaml file
-      $.ajax({
-      method: 'GET',
-      // this API returns orcae_bogas default config file
-      url: './API/defaults?file=species_config',
-      complete: function(xhr, textStatus) {
-        if(xhr.status == 200) {
-          // binds editor field
-          var editor = ace.edit($('#config-file-5code').get(0));
-          // puts returned default value into editor field
-          // the second parameter indicates position of the cursor (-1 = at the top of the editor)
-          editor.setValue(xhr.responseText, -1);
-        }
-
-        // TODO: else
-      }
-    });
-    */
+    // initializes click on radio button
+    $('#action-choice.section input[name=\'type\']').click(changeType);
 
   });
 
@@ -291,11 +292,29 @@
     // sets particular values in form
     // deletes aready shown values from array
 
+    // shows orcae_bogas configuration (.yaml)
+    var config_file_bogas = ace.edit($('#config-file-bogas').get(0));
+    config_file_bogas.setValue(session['config_bogas'], -1);
+    delete session['config_bogas'];
+
+    // shows orcae_species configuration (.yaml)
+    var config_file_5code = ace.edit($('#config-file-5code').get(0));
+    config_file_5code.setValue(session['config_species'], -1);
+    delete session['config_species'];
+
+    //selects action type
+    // if action is update: modifies radio button default selection
+    if(session['type'] == 'update') {
+      // sets other radio button unchecked
+      $('[name=\'type\'][value!=\'update\']').prop('checked', false).each(changeType);
+      // sets 'udpate' radio button checked
+      $('[name=\'type\'][value=\'update\']').prop('checked', true).each(changeType);
+    }
+    delete session['type'];
+
     // returned value is a session
     // values are in format form_field => value
-    console.log('----- SESSION ATTRIBUTES -----');
     for(var attr in session) {
-      console.log(attr);
       $('[name=\'' + attr + '\']').val(session[attr]);
     }
   }
@@ -342,7 +361,7 @@
         }));
 
       // deletes warnings already shown as error
-      if(warninsg.hasOwnProperty(key)) {
+      if(warnings.hasOwnProperty(key)) {
         delete warnings[key];
       }
     }
@@ -376,15 +395,15 @@
     // inizialization of session data to be sent
     var data = new Array();
 
-    // TODO: get id of current session, if any
-
     // get current action
-    data = data.concat($('#action-choice').serializeArray());
+    var $actionChoice = $('#action-choice [name=\'type\']:checked');
+    data.push({name: $actionChoice.attr('name'), value: $actionChoice.val()});
 
     // get species info
     data = data.concat($('#species-info').serializeArray());
 
-    // TODO: get species image along with info
+    // gets species image along with info
+    data.push({name: 'species_image', value: $('#species-image')[0].files[0]});
 
     // get groups info
     data = data.concat($('#group-info').serializeArray());
@@ -412,17 +431,35 @@
     }
     url = url + '/config';
 
+    // needed FormData request to send files
+    var fd = new FormData();
+    // appends data values to FormData variable
+    data.forEach(function(e, i) {
+      fd.append(e.name, e.value);
+    });
+
     // sends data to session API
     $.ajax({
       method: 'POST',
       url: url,
-      data: data,
+      processData: false,
+      contentType: false,
+      data: fd,
       dataType: 'json',
       complete: function(xhr, textStatus) {
         // handles correct response
         if(xhr.status == '200') {
-          // already json-parsed response
-          console.log(xhr.responseJSON);
+          // retrieves session id
+          var session_id = xhr.responseJSON.session;
+          // changes page session id hidden value
+          $('#session-id').val(session_id);
+          // modifies browser url adding session id
+          var url = window.location.href;
+          url = url.replace('/sessions/config', '/sessions/' + session_id + '/config');
+          // applies changed url to browser window
+          history.pushState(null, null, url);
+
+          // renders alerts
           showConfigAlerts(xhr.responseJSON);
         }
         // checks if server refuses to satisfy the request and why
@@ -436,5 +473,37 @@
         }
       }
     });
+  }
+
+  /*
+  * Handles click of radio button
+  * If value is 'insert': all fields are required
+  * If value is 'udpate': only genome info section is required to bind current genome to the edited one
+  */
+  function changeType(event) {
+
+    // if it is not checked: exits the function
+    if(!$(this).prop('checked')) return;
+
+    // defines value of selected type
+    var val = $(this).val();
+
+    // checks for container visibility
+    // if container is visible: transition must be slow (user will see it)
+    var transition_time = 'slow';
+    // if container is not visible: transition must be immediate (time 0)
+    // this way gets rendered before container is rendered
+    if($('.main.container').css('display') == 'none') {
+      transition_time = 0;
+    }
+
+    // case update: hides every section except genome info
+    if(val == 'update') {
+      $('.section#group-info:not([style*=\'display: none\']), .section#config-files:not([style*=\'display: none\'])').fadeOut(transition_time);
+    }
+    // case insert: shows every section which is not already visible
+    else {
+      $('.section#group-info[style*=\'display: none\'], .section#config-files[style*=\'display: none\']').fadeIn(transition_time);
+    }
   }
 </script>

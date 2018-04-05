@@ -18,9 +18,9 @@
 
   /*
     This controller returns default values.
-    NOTE: due to yaml configuration, it needs PECl enabled in php.ini
+    It is built in plain php, thus any server configuration is required
   */
-  class DefaultsController extends ApiController {
+  class DefaultsApiController extends ApiController {
 
     // this API requires authentication
     public function beforeFilter() {
@@ -36,13 +36,13 @@
         if(isset($this->params->query['file'])) {
           $file = $this->params->query['file'];
           // request of orcae_bogas .yaml configuration file
-          if($file == 'orcae_bogas') {
-            $this->orcaeConfig();
+          if($file == 'config_orcae') {
+            $this->configOrcae();
             return;
           }
           // request of species .yaml config file
-          else if($file == 'species_config') {
-            $this->speciesConfig();
+          else if($file == 'config_species') {
+            $this->configSpecies();
             return;
           }
         }
@@ -53,9 +53,9 @@
     }
 
     // returns species_config default yaml file
-    protected function speciesConfig() {
+    protected function configSpecies() {
       // binding to species default .yaml config file
-      $file = new File('../Config/Defaults/species_config.default.yaml');
+      $file = new File($this->configUrl('config_species.default.yaml'));
       // reads file (turns file into string)
       $read = $file->read();
 
@@ -81,15 +81,25 @@
     }
 
     // returns orcae_bogas default yaml file
-    protected function orcaeConfig() {
+    protected function configOrcae() {
       // binding to orcae_bogas default .yaml config file
-      $file = new File('../Config/Defaults/orcae_bogas.default.yaml');
+      $file = new File($this->configUrl('config_orcae.default.yaml'));
       // reads file (turns file into string)
       $read = $file->read();
 
       // returns read file
       $this->response->statusCode('200');
       $this->response->body($read);
+    }
+
+    // creates config url
+    private function configUrl($fileName) {
+      // defines path as array
+      $path = array(ROOT, 'app', 'Config', 'Defaults');
+      // adds filename as last position
+      $path[] = $fileName;
+      // creates url
+      return implode(DS, $path);
     }
 
   }

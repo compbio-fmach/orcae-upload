@@ -8,6 +8,9 @@
 
   // API controller required
   App::uses('ApiController', 'Controller');
+  // File and Folder utilities required
+  App::uses('Folder', 'Utility');
+  App::uses('File', 'Utility');
 
   class SessionConfigApiController extends ApiController {
 
@@ -100,6 +103,8 @@
 
       // retireves session id from post
       $new_session = $this->request->data;
+      // adds species image file to session data
+      $new_session['species_image'] = isset($this->request->params['form']['species_image']) ? $this->request->params['form']['species_image'] : null;
 
       // checks if it is necessary to insert new session
       // if session id has not been sent, it is set to null. This way, Session->exists(...) can immediately detect it
@@ -111,6 +116,7 @@
       if($old_session) {
         // sets new session id as new session id
         $new_session['id'] = $old_session['id'];
+
         // checks authorization using previously initialized user stored in session
         // (it must be set here, it has been checked in beforeFilter)
         if($this->SessionConfig->auth($old_session, $this->user)) {
@@ -145,8 +151,12 @@
       if($this->SessionConfig->save($new_session)) {
         // set status as 200 OK
         $this->response->statusCode(200);
-        // returns session id
-        $message['session'] = $this->SessionConfig->id;
+
+        // adds id to session
+        $message['session'] = $new_session['id'] = $this->SessionConfig->id;
+
+        // saves image
+        $this->validateSessionImage($message, $new_session);
       }
       // error while saving data
       else {
@@ -156,8 +166,6 @@
 
       // set message variable as response body
       $this->response->body(json_encode($message));
-      // sends response
-      //$this->response->send();
     }
 
     // configures data for insertion (new session)
@@ -202,6 +210,46 @@
     }
 
     /*
+    * Validates and saves species image
+    * As usual, message and data are passed by reference and not by copy
+    * This way params are modified inside the function and do not need to be returned
+    */
+    private function validateSessionImage(&$message, &$data) {
+
+      // checks if image is present into data
+      if(!isset($data['species_image']) || empty($data['species_image'])) return;
+
+      // looks for upload errors
+      if($data['species_image']['error'] != UPLOAD_ERR_OK) {
+        $message['errors']['species_image'] = $data['species_image']['error'];
+        return;
+      }
+
+      // defines image type
+      $img_type = exif_imagetype($data['species_image']['tmp_name']);
+
+      // checks if imagetype is allowed
+      if($img_type != IMAGETYPE_JPEG) {
+        $message['errors']['species_image'] = "Image type is not valid";
+        return;
+      }
+
+      // generates image name "species_image_<id>.<type>"
+      $img_name = "species_image_".$data['id'].image_type_to_extension($img_type, true);
+
+      // creates species images directory if it does not exist
+      $img_dir = new Folder(WWW_ROOT.'img'.DS.'species_images', true, 755);
+
+      // moves file to directory and overwrites previously updated one if any
+      if(!move_uploaded_file($data['species_image']['tmp_name'], $img_dir->path.DS.$img_name)) {
+        $message['errors']['species_image'] = "Cannot upload file correctly, reason unknown";
+        return;
+      }
+
+      // file correctly moved:
+    }
+
+    /*
       Validates session before saving it into database.
       Parameters: message and data (each one is passed as a reference because it will be modified).
       Generates errors, warnings and updates input data (previously retrieved from POST request body).
@@ -212,6 +260,20 @@
     */
     protected function validateSession(&$message, &$data) {
 
+      // validates ncbi taxid
+      $speciesTaxId = isset($data['species_taxid']) ? $data['species_taxid'] : '';
+      // case field is not empty
+      if(!empty($speciesTaxId)) {
+        // checks taxid value
+        if(!preg_match('/^[0-9]*$/', $speciesTaxId)) {
+          $message['errors']['species_taxid'] = "Inserted value is not a valid TaxId";
+        }
+      }
+      // case field is empty
+      else {
+        $message['warnings']['species_taxid'] = "NCBI TaxId should be set";
+      }
+
       // validates species name length
       $speciesName = isset($data['species_name']) ? $data['species_name'] : '';
       // removes useless white spaces
@@ -220,6 +282,9 @@
         // states that species name is too long
         // this is a blocking error
         $message['errors']['species_name'] = "Species name length exceeds 255 chars";
+      }
+      else if (empty($speciesName)) {
+        $message['warnings']['species_name'] = "Species name should be set";
       }
       // updates data with parsed species name
       $data['species_name'] = $speciesName;
@@ -235,7 +300,7 @@
       }
       // gives a warning if shortname is not 5 digits
       else if(strlen($species5Code) != 5) {
-        $message['warnings']['species_5code'] = "Species shortname must be 5 chars";
+        $message['warnings']['species_5code'] = "Species shortname must be 5 chars long";
       }
       // updates original data field
       $data['species_5code'] = $species5Code;

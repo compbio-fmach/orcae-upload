@@ -37,7 +37,7 @@
   // retrieves already existent session configuration
   Router::connect('/API/sessions/:id/config', array('controller' => 'SessionConfigApi', 'action' => 'view', '[method]' => 'GET'));
   // returns default values
-  Router::connect('/API/sessions/config/default', array('controller' => 'SessionConfigApi', 'action' => 'default', '[method]' => 'GET'));
+  Router::connect('/API/defaults', array('controller' => 'DefaultsApi', 'action' => 'index'));
   // no action defined: api controller index returns 404 by default
   Router::connect('/API/*', array('controller' => 'Api', 'action' => 'index'));
 

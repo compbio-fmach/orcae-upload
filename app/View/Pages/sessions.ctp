@@ -80,7 +80,7 @@
 
     // cell species name
     $row.append($('<td/>', {
-      text: session.sepcies_name
+      text: session.species_name
     }));
 
     // cell creation time
