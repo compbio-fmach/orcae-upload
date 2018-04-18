@@ -76,7 +76,7 @@
 
           <!-- Shortname input -->
           <div class="col-md-6 section-paragraph">
-            <label for="species5code">Species' short name</label>
+            <label for="species-5code">Species' short name</label>
             <input type="text" class="form-control" id="species-5code" name="species_5code" placeholder="Species' short name">
             <small class="text-muted">It is a 5 digits code which represents this species</small>
           </div>
@@ -98,7 +98,7 @@
               <input type="file" class="custom-file-input" id="species-image" name="species_image" accept=".jpg">
               <label class="custom-file-label" for="species-image">Choose file</label>
             </div>
-            <small class="text-muted">Image will be stretched or cropped to fit 155px x 155px.</small>
+            <small class="text-muted">Image will be stretched or cropped to fit 155x155 px.</small>
           </div>
         </div>
 
@@ -184,11 +184,9 @@
         method: 'GET',
         dataType: 'json',
         complete: function(xhr, textStatus) {
-          if(!xhr.status == '200') {
+          if(xhr.status != '200') {
             // TODO: handle other codes
           }
-
-          console.log(xhr.responseText);
 
           // initializes session values
           initConfig(xhr.responseJSON.session);

@@ -24,3 +24,7 @@ body {
   padding: 15px;
   margin: 0 auto;
 }
+
+.form-signin > * {
+  margin-bottom: 1rem;
+}

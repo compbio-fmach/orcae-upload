@@ -18,7 +18,7 @@
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 
- App::uses('AppController', 'Controller');
+App::uses('AppController', 'Controller');
 
 /**
  * Static content controller
@@ -71,4 +71,81 @@ class PagesController extends AppController {
 		}
 	}
 
+	/*
+	* Handles page authorization.
+	* If user is not authorized, renders login page.
+	* Then, id dies to stop flow execution.
+	*/
+	public function authRequired() {
+		if(!$this->auth()) {
+			// selects page to be rendered
+			$this->login();
+			// tells default value has been selected
+			return false;
+		}
+
+		return true;
+	}
+
+	/*
+	* Handles default page.
+	* If user is authenticated: shows
+	*/
+	public function index() {
+		// sets correct layout
+		$this->layout = 'main';
+
+		// case user is authenticated
+		// sessions is default page in this case
+		if($this->auth()) {
+			$this->display('sessions');
+		}
+		// case user is not authenticated
+		// login is default page in this case
+		else {
+			$this->display('login');
+		}
+	}
+
+	/*
+	* Displays login page
+	*/
+	public function login() {
+		// sets correct layout
+		$this->layout = 'main';
+
+		// checks if user is authenticated
+		if($this->auth()) {
+			// if user is authenticated, renders login page
+			$this->display('sessions');
+		}
+		// renders login page
+		else {
+			$this->display('login');
+		}
+	}
+
+	public function sessions() {
+		// checks if user is authenticated
+		if($this->authRequired()) {
+			// sets correct layout
+			$this->layout = 'main';
+			// renders sessions page
+			$this->display('sessions');
+		}
+	}
+
+	public function sessionConfig() {
+		// checks if user is authenticated
+		if($this->authRequired()) {
+			// retrieves session id if any
+			$id = isset($this->request->params['id']) ? $this->request->params['id'] : null;
+			// set session id for config page
+			$this->set('id', $id);
+			// sets correct layout
+			$this->layout = 'main';
+			// renders session config page
+			$this->display('session_config');
+		}
+	}
 }

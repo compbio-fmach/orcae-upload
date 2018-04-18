@@ -20,40 +20,34 @@
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 
-  // ROUTES HANDLING
-  // first of all, more specific routes are evaluated (e.g. /API)
+/**
+ * Routes
+ * Here there are the main routes of orcae-upload app
+ * There are two main types of routes: Pages and APIs
+ * The former are controllers which renders the views of orcae-upload
+ * The latter are controllers which implements APIs of orcae upload
+ */
+ // API routes for authentication (login and logout APIs)
+ Router::connect('/API/login', array('controller' => 'ApiAuth', 'action' => 'login'));
+ Router::connect('/API/logout', array('controller' => 'ApiAuth', 'action' => 'logout'));
+ // API routes for genome configuration sessions handling
+ Router::connect('/API/genomecs', array('controller' => 'ApiGenomeCS'));
+ Router::connect('/API/genomecs/:id', array('controller' => 'ApiGenomeCS'));
+ // API route which returns default files value to authenticated users
+ Router::connect('/API/defaults/:file', array('controller' => 'ApiDefaults'));
+ // API route which returns species stored into orcae_bogas.taxid table
+ Router::connect('/API/species', array('controller' => 'ApiSpecies', '[method]' => 'GET', 'action' => 'read'));
+ // API default route returns 404 API not found
+ Router::connect('/API/*', array('controller' => 'Api', 'action' => 'index'));
 
-  // API ROUTES
-  // login route
-  Router::connect('/API/login', array('controller' => 'AuthApi', 'action' => 'login'));
-  // logout route
-  Router::connect('/API/logout', array('controller' => 'AuthApi', 'action' => 'logout'));
-  // insert new session configuration
-  Router::connect('/API/sessions/config', array('controller' => 'SessionConfigApi', 'action' => 'edit', '[method]' => 'POST'));
-  // retireves all sessions configurations
-  Router::connect('/API/sessions/config', array('controller' => 'SessionConfigApi', 'action' => 'view', '[method]' => 'GET'));
-  // edit already existent session configuration
-  Router::connect('/API/sessions/:id/config', array('controller' => 'SessionConfigApi', 'action' => 'edit', '[method]' => 'POST'));
-  // retrieves already existent session configuration
-  Router::connect('/API/sessions/:id/config', array('controller' => 'SessionConfigApi', 'action' => 'view', '[method]' => 'GET'));
-  // returns default values
-  Router::connect('/API/defaults', array('controller' => 'DefaultsApi', 'action' => 'index'));
-  // no action defined: api controller index returns 404 by default
-  Router::connect('/API/*', array('controller' => 'Api', 'action' => 'index'));
-
-  // PAGES ROUTES
-  // displays test page
-	Router::connect('/cakephp', array('controller' => 'Pages', 'action' => 'display', 'home'));
-  // renders login page
-  Router::connect('/login', array('controller' => 'Pages', 'action' => 'login'));
-  // renders session bound to passed id
-  Router::connect('/sessions/:id/config', array('controller' => 'Pages', 'action' => 'sessionConfig'));
-  // renders empty session form (used for new session configuration creation)
-  Router::connect('/sessions/config', array('controller' => 'Pages', 'action' => 'sessionConfig'));
-  // renders sessions overview
-  Router::connect('/sessions', array('controller' => 'Pages', 'action' => 'sessions'));
-  // displays default page
-  Router::connect('/*', array('controller' => 'Pages', 'action' => 'index'));
+ // If route is /sessions, uses SessionsController in order to render the correct page
+ Router::connect('/genomecs', array('controller' => 'GenomeCS', 'action' => 'index'));
+ Router::connect('/genomecs/:id', array('controller' => 'GenomeCS', 'action' => 'config'));
+ Router::connect('/genomecs/:id/upload', array('controller' => 'GenomeCS', 'action' => 'upload'));
+ // If route is /login, uses LoginController to render the login page
+ Router::connect('/login', array('controller' => 'Login'));
+ // Redirects to default page, which is /sessions, if any route has been matched
+ Router::redirect('/*', array('controller' => 'GenomeCS', 'action' => 'index'));
 
 /**
  * Load all plugin routes. See the CakePlugin documentation on

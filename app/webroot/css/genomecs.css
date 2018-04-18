@@ -1,0 +1,29 @@
+
+/**
+ * Main container gets shown after data are loaded
+ */
+.main.container {
+  display: none;
+  padding-top: 56px;
+}
+
+/**
+ * Style for table title
+ */
+.table-title {
+  display: block;
+}
+.table-title > * {
+  vertical-align: bottom;
+  display: inline-block;
+  margin-bottom: .7rem;
+  line-height: 1;
+}
+.table-title .table-title-left {
+  text-align: left;
+  width: 69%;
+}
+.table-title .table-title-right {
+  text-align: right;
+  width: 30%;
+}

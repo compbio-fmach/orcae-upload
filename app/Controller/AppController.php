@@ -32,19 +32,18 @@ App::uses('Controller', 'Controller');
  */
 class AppController extends Controller {
 
-  protected $user;
+  // Defines components used in this controller
+  public $components = array('Session');
 
-  // this ensures every controller has access to user
+  // Defines models used in this controller
+  // Every controller uses User model, in order to access authenticated user info
+  public $uses = array('User');
+
+  // Initializes User from session, if any
   public function beforeFilter() {
-    // retrieves user (if it is not set, it will be null)
-    $this->user = $this->Session->read('OrcaeUpload.user');
-  }
-
-  // checks if a user is authenticated or not
-  protected function auth() {
-    if($this->Session->read('OrcaeUpload.user')) {
-      return true;
-    }
-    return false;
+    // Reads user from session
+    $user = $this->Session->read('OrcaeUpload.user');
+    // Puts user into User.user attribute
+    $this->User->initUser($user);
   }
 }

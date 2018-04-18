@@ -1,6 +1,6 @@
 <nav class="navbar fixed-bottom navbar-expand-lg navbar-light navbar-bottom">
 
-    <?php if($page == 'upload'): ?>
+    <?php if($page == 'sessions_uploads'): ?>
     <!-- left side -->
     <ul class="navbar-nav mr-auto">
       <li class="nav-item">
@@ -9,7 +9,7 @@
     </ul>
     <?php endif; ?>
 
-    <?php if($page == 'config'): ?>
+    <?php if($page == 'sessions_config'): ?>
     <!-- right side -->
     <ul class="navbar-nav ml-auto">
       <li class="nav-item">
