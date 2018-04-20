@@ -33,6 +33,12 @@
  // API routes for genome configuration sessions handling
  Router::connect('/API/genomecs', array('controller' => 'ApiGenomeCS'));
  Router::connect('/API/genomecs/:id', array('controller' => 'ApiGenomeCS'));
+ // API route for upload handling
+ Router::connect(
+   '/API/genomecs/:id/uploads',
+   array('controller' => 'ApiGenomeUploads'),
+   array('pass' => array('id'))
+ );
  // API route which returns default files value to authenticated users
  Router::connect('/API/defaults/:file', array('controller' => 'ApiDefaults'));
  // API route which returns species stored into orcae_bogas.taxid table
@@ -43,7 +49,10 @@
  // If route is /sessions, uses SessionsController in order to render the correct page
  Router::connect('/genomecs', array('controller' => 'GenomeCS', 'action' => 'index'));
  Router::connect('/genomecs/:id', array('controller' => 'GenomeCS', 'action' => 'config'));
- Router::connect('/genomecs/:id/upload', array('controller' => 'GenomeCS', 'action' => 'upload'));
+ Router::connect('/genomecs/:id/uploads',
+  array('controller' => 'GenomeCS', 'action' => 'uploads'),
+  array('pass' => array('id'))
+);
  // If route is /login, uses LoginController to render the login page
  Router::connect('/login', array('controller' => 'Login'));
  // Redirects to default page, which is /sessions, if any route has been matched

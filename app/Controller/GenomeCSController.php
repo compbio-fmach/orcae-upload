@@ -50,11 +50,9 @@ class GenomeCSController extends AppController {
      $user = $this->User->getUser();
      // Checks if id is bound to a valid genomecs
      $result = $this->GenomeCS->find('count', array(
-       array(
-         'conditions' => array(
-           'GenomeCS.id' => $id,
-           'GenomeCS.user_id' => $user['id']
-         )
+       'conditions' => array(
+         array('GenomeCS.id' => $id),
+         array('GenomeCS.user_id' => $user['id'])
        )
      ));
 

@@ -106,76 +106,11 @@ class ApiGenomeCSController extends ApiController {
     // Encodes response as json if it is not an error (http code is 2xx)
     if(preg_match('/^2[\d]{2}$/', (string)$this->response->statusCode())) {
       $body = $this->response->body();
-      $body = !empty($body) ? json_encode($body) : null;
+      $body = json_encode($body);
       $this->response->body($body);
     }
 
     return $this->response;
-
-    /*
-    // Defines method used in request
-    $method = $this->request->method();
-    // Defines passed parameters (intended as :var in urls)
-    $params = $this->request->params['pass'];
-    // Initializes sub-paths (e.g. /API/sessions/config, /API/sessions/upload, /API/sessions/.../..., and so on)
-    $config = $upload = false;
-
-    // Defines if route is /sessions/config
-    if(isset($params[0]) && $params[0] == 'config') {
-      $config = true;
-    }
-
-    // If route is not /sessions/config or /sessions/upload, checks if there is a parameters, which becomes session id
-    if(isset($params[0]) && !$config && !$upload) {
-      $this->session = array('id' => $params[0]);
-    }
-
-    // Defines if route is /sessions/:sid/config
-    if(!$config && !$upload && isset($params[1]) && $params[1] == 'config') {
-      $config = true;
-    }
-
-    // Redirects to response method after checking out request method
-    // Case method used in request is GET
-    if($method == 'GET') {
-      // Case route is /sessions/config or /sessions/id/config
-      if($config) {
-        // redirects to readConfig method
-        return $this->readConfig();
-      }
-      // Case route id /sessions
-      else {
-        // redirects to read() method
-        return $this->read();
-      }
-    }
-
-    // Case method used in request is DELETE
-    else if($method == 'DELETE') {
-      return $this->delete();
-    }
-
-    // Case method used in request is post
-    else if($method == 'POST') {
-      // Checks if config
-      if($config) {
-        // Puts species_image field into data
-
-        // Determines if it is a genome upload session update
-        if(isset($this->session['id'])) {
-          return $this->updateConfig();
-        }
-        // Determines if it is a genome upload session creation
-        else {
-          return $this->createConfig();
-        }
-      }
-    }
-
-    // If any method has been executed, responds with '404 API Not Found'
-    return $this->error404();
-
-    */
   }
 
   /**
@@ -238,8 +173,6 @@ class ApiGenomeCSController extends ApiController {
     // Parses returned rows (uses only object data)
     foreach ($result as &$genomecs) {
       $genomecs = $genomecs['GenomeCS'];
-
-      // Puts image url in returned rows, if any
     }
 
     // Sets response http code as '200 OK'
