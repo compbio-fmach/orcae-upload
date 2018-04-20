@@ -25,12 +25,12 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
     <div class="col-md-8 offset-md-2">
 
       <!-- defines if this is a new genome insertion or an update -->
-      <form class="section" id="session-type">
+      <form class="section" id="session">
 
         <!-- title -->
         <h4 class="section-title">Select an action</h4>
 
-        <div class="section-input">
+        <div class="section-input"  id="session-type">
           <!-- Insert new genome -->
           <label class="custom-radio"> Add new genome to ORCAE
             <input class="input" type="radio" name="type" value="insert" checked>
@@ -46,7 +46,7 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
       </form>
 
       <!-- Species information section -->
-      <form class="section" id="species-info">
+      <form class="section" id="species">
 
         <!-- title -->
         <h4 class="section-title">Species information</h4>
@@ -83,7 +83,7 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
               <!-- background image (just a grey-colored div) shown when no image has been set -->
               <div class="bg-secondary"></div>
               <!-- image shown only if an image is set -->
-              <img id='species-image-preview' src="#" alt="">
+              <img class='species-image-preview' id="species-image-preview" src="#" alt="">
             </div>
             <!-- image selector -->
             <div class="custom-file">
@@ -98,7 +98,7 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
       </form>
 
       <!-- This section handles user admin rights, messages and group-related things -->
-      <form class="section" id="group-info">
+      <form class="section" id="group">
 
         <h4 class="section-title">Configure user group</h4>
 
@@ -135,7 +135,7 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
 
       </div>
 
-      <!-- Save chnages button. Id does not need a section -->
+      <!-- Save changes button. Id does not need a section -->
       <div class="section">
         <button class="btn btn-primary btn-lg btn-block section-item" id="save-session" type="button">Save &check;</button>
       </div>
@@ -151,9 +151,9 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
   echo $this->element('navbar.bottom', array('page' => 'sessions_config'));
 ?>
 
-<!-- Validator script -->
+<!-- Scripts -->
 <?php
-  echo $this->Html->script('sessions_config_validator');
+  echo $this->Html->script('genomecs-validator');
 ?>
 
 <!-- Page configuration scripts -->
@@ -162,24 +162,19 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
   // Web root path (required for calling APIs)
   var webroot = <?php echo json_encode($this->webroot); ?>;
 
-  // Session object representing current session
-  var session = {
-    // Uses id passed by controller
+  // GenomeCS object representing current Configuration Session
+  var genomecs = {
+    // Retrieves id from controller
     id: <?php echo json_encode($this->params['id']); ?>
   }
 
-  // Mantains reference to page main container
+  // Mantains reference to mostly used DOM elements
   var $main = undefined;
-
-  // Mantains a reference to validable fields
-  var $validables = undefined;
-
-  // Mantains a reference to .yaml files editors
-  var $editor_orcae = undefined;
-  var $editor_5code = undefined;
+  var $sections = undefined;
+  var $fields = undefined;
 
   // Creates new istance of session config validator
-  var validator = new SessionConfigValidator();
+  var validator = new Validator();
 
   /**
    * Document initialization
@@ -189,203 +184,206 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
    */
   $(document).ready(function() {
 
-    // Initializes main container
+    // Defines main form container
     $main = $('.main.container');
+    // Defines fields of form
+    $fields = $main
+      // Session type checkboxes
+      .find('#session-type [name=\'type\']')
+      // Species information fields
+      .add('#species [name^=\'species_\']')
+      // Group configuration fields
+      .add('#group [name^=\'group_\']')
+      // YAML file editors
+      .add('#config-files [id^=\'config-file-\']');
 
-    // Defines the list fields which can be validated
-    $validables = $main.find('input[name][name!=\'type\'][name!=\'species_image\'], textarea[name][name!=\'\']');
+    // Initializes session type field
+    $fields.filter('[name=\'type\']').each(function(){
+      $(this).on('click', function() {
+        // Calls default action on session type radio button click
+        clickSessionType.call(this);
 
-    // Initializes editors using Ace editor
-    $editor_orcae = ace.edit($('#config-file-orcae').get(0));
-    $editor_5code = ace.edit($('#config-file-5code').get(0));
-    // Sets common editors properties
-    [$editor_orcae, $editor_5code].forEach(function($editor) {
-      // Defines editor id
-      var id = $($editor.container).attr('id');
+        // Triggers species name validation on type change
+        var $species_name = $fields.filter('[name=\'species_name\']');
+        $species_name.trigger('keyup');
+      });
+    });
 
+    // Initailizes species name
+    $fields.filter('[name=\'species_name\']').each(function(){
+      $(this).on('keyup', keyupSpeciesName);
+    });
+
+    // Initializes species taxid and species 5code
+    $fields.filter('[name=\'species_taxid\'], [name=\'species_5code\']').each(function() {
+      $(this).on('keyup', keyupSpecies);
+    });
+
+    // Initializes species image field
+    $fields.filter('[name=\'species_image\']').each(function(){
+      $(this).on('change', changeSpeciesImage);
+    });
+
+    // Initializes group fields
+    $fields.filter('[name^=\'group_\']').each(function(){
+      $(this).on('keyup', keyupGroup);
+    });
+
+    // Initializes YAML editors as ace editors
+    $fields.filter('[id^=\'config-file-\']').each(function(){
+      // Defines ace editor
+      var editor = ace.edit($(this).get(0));
       // Sets editors in .yaml mode
-      $editor.session.setMode('ace/mode/yaml');
+      editor.session.setMode('ace/mode/yaml');
       // Sets editor graphic properties
-      $editor.setOptions({
+      editor.setOptions({
           minLines: 30,
           maxLines: Infinity
       });
 
-      // Defines default file to be retrieved
-      switch(id) {
-        // Case orcae bogas yaml file
-        case 'config-file-orcae':
-          initEditorDefault($editor, 'config_orcae.default.yaml');
-          break;
-        // Case genome configuration yaml file
-        case 'config-file-5code':
-          initEditorDefault($editor, 'config_species.default.yaml');
-          break;
-        // Case no default file found
-        default: break;
+      // Defines the default file to retrieve
+      if($(this).attr('id') == 'config-file-orcae') {
+        var file = 'config_orcae.default.yaml';
       }
-    });
+      else {
+        var file = 'config_species.default.yaml';
+      }
 
-    // Initializes image field change action
-    $('#species-image-browser').on('change', changeSpeciesImage);
-    // Initializes session type switching
-    $('#session-type [name=\'type\']').on('click', changeSessionType);
-
-    // Initializes session default validation for inputs with have a name set
-    $validables.filter('[name!=\'species_name\']').on('keyup', function(){
-      var field = $(this).attr('name');
-      var value = $(this).val();
-      validate(field, value, function(result) {
-        $(this).validate(result);
+      // Puts default data into editor
+      // Default data is retrieved from editor
+      $.ajax({
+        url: webroot + 'API/defaults/' + file,
+        method: 'GET'
+      }).done(function(data){
+        if(!editor.getValue()) {
+          editor.setValue(data, -1);
+        }
       });
     });
 
-    // Initializes validation on species_name field
-    $validables.filter('[name=\'species_name\']').on('keyup', function(){
-      // Saves this element's reference
-      var $self = $(this);
-      // Clears previously set timeout (set into this field)
-      clearTimeout($.data($self.get(0), 'validation'));
-      // Sets new timeout
-      var timeout = validateSpeciesName(
-        // First parameter is this input's value
-        $self.val(),
-        // Second parameter is the function that will be executed after validation
-        function(result) {
-          $self.validate(result);
-        },
-        // Third parameter is delay of ajax request (optimization of server requests)
-        500
-      );
+    // Initializes save button event on click
+    $('#save-session').on('click', clickSaveButton);
 
-      // Overrides older timeout into input
-      $self.data('validation', timeout);
+    // Retrieves GenomeCS from database and puts them into form
+    $.ajax({
+      url: webroot + 'API/genomecs/' + genomecs.id,
+      method: 'GET',
+      dataType: 'json'
+    })
+    .done(function(data){
+      genomecs = data;
+    })
+    .fail(function(data){
+      genomecs.id = undefined;
+    })
+    .always(function(data){
+      // Loads data into form
+      loadConfigSession(data);
+
+      // If GenomeCS is set, triggers validation
+      if(genomecs.id != undefined) {
+        validateConfigSession(function(){});
+      }
+
+      // Shows form
+      $main.fadeIn('slow');
     });
-
-    // Defines a function to be executed on save button click
-    $('button#save-session').on('click', clickSaveButton);
-
-    // Retrieves session id
-    retrieveSessionConfig(session.id)
-      // On success: sets session as returned value
-      .done(function(data){
-        console.log('DONE ', data);
-        session = data;
-      })
-      // On error: deletes session values
-      .fail(function(data){
-        // Case error happened, does not set session
-        session.id = undefined;
-        console.log('ERROR ', data);
-      })
-      // Initializes view with returned values
-      .always(function(){
-        // Initializes session configuration form retrieved session value
-        initSessionConfig(session);
-        // Shows initialized form
-        $main.fadeIn('slow');
-      });
   });
 
   /**
-   * @function retrieveSessionConfig
-   * Retrieves session config using session.id
-   * It is not aynchronous, because it must terminate before every other inizialization function are executed
-   * @param done is the function executed after
-   */
-  function retrieveSessionConfig(id) {
-    // Sends a GET request to /API/genomecs/:id
-    return $.ajax({
-      // Creates correct url
-      url: webroot + 'API/genomecs/' + session.id,
-      method: 'GET',
-      dataType: 'json'
-    });
-  }
-
-  /**
-   * @function initSessionConfig
-   * Initializes session into view
-   * @param session specifies the session to initialize
+   * @function loadForm loads Genomecs data into form
+   * Retrieves values from ajax request using retrieveGenomeCS
+   * Firstly: initializes DOM fields that requires special initialization
+   * Lastly: initializes common DOM fields
+   * @param data is the GenomeCS istance returned by the server
    * @return void
    */
-  function initSessionConfig(_session) {
-    // Copy session by value, this way it can be modified without modifying original object
-    var session = Object.assign({}, _session);
+  function loadConfigSession(data) {
+    // Copy data by value, in this way original data is not modified
+    var data = Object.assign({}, data);
 
-    // Initializes into dom values that need a special elaboration
-    // then deletes those values in order to not initialize their DOM elements lately, for the second time
-
-    // Initializes config_orcae.yaml editor's values
-    if (session.config_orcae != undefined) {
-      $editor_orcae.setValue(session.config_orcae, -1); // Sets editor's content (-1 sets for cursor position)
-      delete session.config_orcae; // Deletes value from object (prevents value from being initialized lately)
+    if (data.config_orcae != undefined) {
+      var $file = $fields.filter('[id=\'config-file-orcae\']');
+      var editor = ace.edit($file.get(0));
+      editor.setValue(data.config_orcae, -1);
+      delete data.config_orcae ; // Deletes value from object (prevents value from being initialized lately)
     }
 
     // Initializes config_species.yaml editor's value
-    if (session.config_species != undefined) {
-      $editor_5code.setValue(session.config_species, -1); // Sets editor's content (-1 sets for cursor position)
-      delete session.config_species; // Deletes value from object (prevents value from being initialized lately)
+    if (data.config_species != undefined) {
+      var $file = $fields.filter('[id=\'config-file-5code\']');
+      var editor = ace.edit($file.get(0));
+      editor.setValue(data.config_species, -1); // Sets editor's content (-1 sets for cursor position)
+      delete data.config_species; // Deletes value from object (prevents value from being initialized lately)
     }
 
     // Initializes species image (passed as url to image)
-    if(session.species_image != undefined) {
+    if(data.species_image != undefined) {
+      var $image_input = $fields.filter('[name=\'species_image\']');
+      var $image_preview = $main.find('#species-image-preview');
       // Initialize image field
-      $('#species-image-preview').attr('src', session.species_image);
-      delete session.species_image;
+      $image_preview.attr('src', data.species_image);
+      delete data.species_image;
     }
 
-    // Sets default session type type
-    if(session.type == undefined) session.type = 'insert';
+    // Sets default session type if it is not set
+    data.type = /^(update|insert)$/.test(data.type) ? data.type : 'insert';
     // Initializes session type
-    $main.find('[name=\'type\']').prop('checked', false);
-    if(session.type == 'insert') {
-      $main.find('[name=\'type\'][value=\'insert\']').prop('checked', true);
-    } else if(session.type == 'update') {
-      $main.find('[name=\'type\'][value=\'update\']').prop('checked', true);
-    }
-    // Calls form initialization based on choosen session type value
-    $.each($main.find('[name=\'type\']:checked'), changeSessionType);
-    // Prevents session type later inizialization
-    delete session.type;
+    $fields.filter('[name=\'type\']').each(function(){
+      if($(this).val() == data.type) {
+        $(this).prop('checked', true);
+      } else {
+        $(this).prop('checked', false);
+      }
+    });
+    // Prevents session type field later inizialization
+    delete data.type;
 
     // Almost every session attribute in DOM has the same name of session object's attribute
-    for(var attr in session) {
+    for(var attr in data) {
       // sets value in DOM element bound to attribute's name
-      $main.find('[name=\'' + attr + '\']').val(session[attr]);
+      $main.find('[name=\'' + attr + '\']').val(data[attr]);
     }
   }
 
   /**
-   * @function serializeSessionConfig serializes values of session config page's form into FormData
+   * @function serializeConfigSession serializes values of session config page's form into FormData
    * @return data as FormData
    */
-  function serializeSessionConfig() {
+  function serializeConfigSession() {
     // Data serialized to be returned
     var data = new FormData();
 
     // Appends session type to data
     data.append('type', $('#session-type [name=\'type\']:checked').val());
 
-    // Appends species info to data
-    $('#species-info').serializeArray().forEach(function(e, i) {
-      data.append(e.name, e.value);
-    });
+    $fields
+      // Appends species info to data
+      .filter('[name^=\'species_\']')
+      // Appends grioup info to data
+      .add('[name^=\'group_\']')
+      .each(function(){
+        data.append($(this).attr('name'), $(this).val());
+      });
 
-    // Appends group info to data
-    $('#group-info').serializeArray().forEach(function(e, i){
-      data.append(e.name, e.value);
-    });
-
-    // Appends yaml files configuration to data
-    data.append('config_species', $editor_5code.getValue());
-    data.append('config_orcae', $editor_orcae.getValue());
+    // Appends YAML files configuration to data
+    data.append('config_species', ace.edit($('#config-file-5code').get(0)).getValue());
+    data.append('config_orcae', ace.edit($('#config-file-orcae').get(0)).getValue());
 
     // Appends image file to configuration data, if an image is set
-    var species_image = $('#species-image-browser').get(0).files[0];
+    var species_image = $('#species [name=\'species_image\']').get(0).files[0];
     if(species_image) {
       data.append('species_image', species_image);
+    } else {
+      data.delete('species_image');
     }
+
+    /*
+    // DEBUG
+    for (var value of data.values()) {
+       console.log(value);
+    }
+    */
 
     return data;
   }
@@ -394,90 +392,16 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
    * @function saveSessionConfig saves form data against server API
    * @return void
    */
-  function saveSessionConfig(data) {
+  function saveConfigSession(data) {
     // Sends data to /API/sessions/:sid/config using POST method
     return $.ajax({
-      url: webroot + 'API/genomecs/' + (session.id ? session.id : ''),
+      url: webroot + 'API/genomecs/' + (genomecs.id ? genomecs.id : ''),
       method: 'POST',
       processData: false,
       contentType: false,
       data: data,
       dataType: 'json'
     });
-  }
-
-  /**
-   * @function defaultEditorValue sets default config file into editor
-   * @param $editor is the ace editor which will be filled with default value retrieved from server
-   * @param file is the file name to request to the server
-   * @return void
-   */
-  function initEditorDefault($editor, file) {
-    // makes request of default config file
-    $.ajax({
-      url: webroot + 'API/defaults/' + file,
-      method: 'GET'
-    })
-    .fail(function(data){
-      console.log('Error while retrieving default file', data);
-    })
-    .done(function(data){
-      // Case server returned http code '200 OK' and editor is empty: puts value into form editor
-      // In case editor is empty but there is a value already set in resource that will later be returned from the server,
-      // the currently set value will howver be overwritten before form fadeIn
-      if(!$editor.getValue()) {
-        $editor.setValue(data, -1);
-      }
-    });
-  }
-
-  /**
-   * @function changeSessionType changes the screen based on session's type value
-   * This function is passed as parameter of session type DOM element (radio buttons) on click
-   * If type equals 'update', only species info must be shown
-   * If type equals 'insert', all form must be displayed
-   */
-  function changeSessionType() {
-    // Saves a reference to radio button
-    var $rb = $(this);
-
-    // Continues execution only if this is the checked radio button
-    if(!$rb.prop('checked')) return;
-
-    // Transition time: sets how much time must fadeIn/fadeOut take
-    // If it executed before page content is displayed, it doesn't need animation
-    var tt = ($main.css('display') == 'none') ? 0 : 'slow';
-
-    // Case 'update': displays only species information
-    if($rb.val() == 'update') {
-      // Updates session.type
-      session.type = 'update';
-      // Applies visible session type changes
-      $('.section#group-info:not([style*=\'display: none\']), .section#config-files:not([style*=\'display: none\'])').fadeOut(tt);
-    }
-    // Case 'insert': display all session's information
-    else {
-      // Updates session.type
-      session.type = 'insert';
-      // Applies visible session type changes
-      $('.section#group-info[style*=\'display: none\'], .section#config-files[style*=\'display: none\']').fadeIn(tt);
-    }
-  }
-
-  /**
-   * @function changeSpeciesImage handle changes in selected session image
-   * Previews either image file name and image itself
-   * @return void
-   */
-  function changeSpeciesImage() {
-    // Reference to input file browser
-    var $browser = $('#species-image-browser');
-    // eference to image preview
-    var $preview = $('#species-image-preview');
-    // previews file name
-    $browser.previewFileName();
-    // previews image
-    $preview.previewImage($browser.get(0).files[0]);
   }
 
   /**
@@ -492,62 +416,6 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
       data: params,
       dataType: 'json'
     });
-  }
-
-  /**
-   * @function clickSaveButton defines actions executes on save button click
-   * First checks if it is enabled (should be enabled only when there isn't any error)
-   * If it is enabled: serializes form data, sends it to server, executes action on result
-   */
-  function clickSaveButton() {
-
-    console.log('ok');
-    // Defines an array of validable fields
-    var validables = new Array();
-    // Loops $validabels field defined on document ready
-    $validables.each(function(){
-      validables.push({ name: $(this).attr('name'), value: $(this).val() });
-    });
-
-    // Validates every validable field
-    validateAll(validables, function(field, result, last) {
-      // Retrieves field using name
-      var $field = $main.find('[name=\'' + field + '\']');
-      // Validates retrieved field
-      $field.validate(result);
-
-      // Executes only for the last callback
-      if(last !== undefined) {
-        // Case validation was successful
-        if(last) {
-          // Retrieves data from form
-          var data = serializeSessionConfig();
-          var message = '';
-          // Sends to database
-          saveSessionConfig(data)
-          // Fields saved correctly
-          .done(function() {
-            message = 'Configuration saved';
-          })
-          // Fields not saved
-          .fail(function() {
-            message = data;
-          })
-          // Executed always
-          .always(function() {
-            // Re-enables save button
-            // Throws result message
-            console.log(message);
-          });
-        }
-        // Case validation found at least one error
-        else {
-          // Re-enables save button
-          // Throws error message
-        }
-      }
-    });
-
   }
 
   /**
@@ -706,7 +574,7 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
        }
 
        // Checks session type
-       if(session.type != 'update') {
+       if(!genomecs || genomecs.type != 'update') {
          // Executes callback on local validation result
          callback(result);
          // Exits execution flow
@@ -716,19 +584,17 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
        // Assigne timeout id to return value
        delayed = setTimeout(function() {
          // Validates species name congruency against database
-         retrieveSpecies()
+         retrieveSpecies({name: value, limit: 1})
          // Ajax success callback
          .done(function(data){
            // Retrieves species from json data
            var species = (data.length > 0) ? data[0] : undefined;
-           // Case species name equals specified value
-           if(species && species.name == value){
-             callback(result);
-           }
-           // Case species does not match specified value
-           else {
-             callback({error: "Does not match any species name"});
-           }
+           // Case species name best match has been found
+           // Executes callback on best match value
+           var result = {error: "Does not match any species name"}
+           // Adds species found to result
+           result.species = species;
+           callback(result);
          })
          // Ajax failure callback
          .fail(function(data){
@@ -791,10 +657,258 @@ $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', a
 
        // Case field is species_name
        if(field == 'species_name') {
-         validateSpeciesName(value, validate_cb);
+         validateSpeciesName(value, function(result){
+           // Checks if best match is the same as value
+           if(result.species && value == result.species.organism) {
+             result = true;
+           }
+
+           // Passes changed result to callback
+           validate_cb(result);
+         });
        } else {
          validate(field, value, validate_cb);
        }
+     });
+   }
+
+   /**
+    * @function validateConfigSession is a wrapper of validateAll function
+    */
+   function validateConfigSession(callback) {
+
+     // Defines an array of validable fields
+     var validables = new Array();
+     // Loops validables $fields defined on document ready
+     $fields.filter('[name][name!=\'\']').each(function(){
+       validables.push({name: $(this).attr('name'), value: $(this).val()});
+     });
+
+     // Validates every validable field
+     validateAll(validables, function(field, result, last) {
+       // Retrieves field using name
+       var $field = $fields.filter('[name=\'' + field + '\']');
+       // Validates retrieved field
+       $field.validate(result);
+
+       // Executes only for the last callback
+       if(last !== undefined) {
+         callback(last);
+       }
+     });
+   }
+
+   /**
+    * @function clickSessionType changes the screen based on session's type value
+    * If type equals 'update', only species info must be shown
+    * If type equals 'insert', all form must be displayed
+    */
+   function clickSessionType() {
+     // Saves a reference to radio button
+     var $rb = $(this);
+
+     // Continues execution only if this is the checked radio button
+     if(!$rb.prop('checked')) return;
+
+     // Transition time: sets how much time must fadeIn/fadeOut take
+     // If it executed before page content is displayed, it doesn't need animation
+     var tt = ($main.css('display') == 'none') ? 0 : 'slow';
+
+     var $sections = $main
+      .find('.section#group')
+      .add('.section#config-files');
+
+     // Case 'update': displays only species information
+     if($rb.val() == 'update') {
+       // Updates session.type
+       genomecs.type = 'update';
+       // Applies visible session type changes
+       $sections.not('[style*=\'display: none\']').fadeOut(tt);
+     }
+     // Case 'insert': display all session's information
+     else {
+       // Updates session.type
+       genomecs.type = 'insert';
+       // Applies visible session type changes
+       $sections.filter('[style*=\'display: none\']').fadeIn(tt);
+     }
+   }
+
+   function keyupSpeciesName() {
+     // Saves this element's reference
+     var $self = $(this);
+
+     // Clears previously set timeout (set into this field)
+     clearTimeout($.data($self.get(0), 'validation'));
+
+     // Sets new timeout
+     var timeout = validateSpeciesName(
+       $self.val(),
+       function(result) {
+         // Defines the species which has been retrieved from API response
+         var species = undefined;
+
+         // Checks if a successful response has been thrown (format is {success: <species>})
+         // Puts returned species into $.data of '#species-name'
+         if(result.species != undefined) {
+           species = result.species;
+         }
+
+         // Puts or removes species into species name field
+         if(species) {
+           $self.data('species', species);
+         } else {
+           $self.removeData('species');
+         }
+
+         // If there isn't any error, checks if species name matches
+         if(species) {
+           if(species.organism == $self.val()) {
+             result = true;
+           }
+         }
+
+         // Validates result
+         $self.validate(result);
+
+         // Deletes previously set hints
+         $self.siblings('.species-name-hint').remove();
+         // Appends hint if similar species name has been found
+         if(species && species.organism != $self.val()) {
+           $self.after($('<small/>', {
+             class: 'text-primary species-name-hint'
+           }));
+         }
+
+         if(species) {
+           // TODO: trigger species-taxid and species-5code validation based on species-name data
+           $fields.filter('[name=\'species_taxid\'], [name=\'species_5code\']').trigger('keyup');
+         }
+
+       },
+       500
+     );
+   }
+
+   function keyupSpecies() {
+
+     // Validates throught standard validator
+     var result = validator.validate($(this).attr('name'), $(this).val());
+
+     if(genomecs && genomecs.type == 'update') {
+       // Retreievs best matching element
+       var species = $fields.filter('[name=\'species_name\']').data('species');
+
+       // Retrieves field name
+       var name = $(this).attr('name');
+
+       if(!result.error) {
+         if(name == 'species_taxid') {
+           if(!(species && species['NCBI_taxid'] == $(this).val())) {
+             result = {error: "Species taxonomy id does not match given species name"};
+           }
+         }
+         else if(name == 'species_5code') {
+           if(!(species && species['5code'] == $(this).val())) {
+             result = {error: "Species shortname does not match given species name"};
+           }
+         }
+       }
+     }
+
+     $(this).validate(result);
+   }
+
+   /**
+    * @function changeSpeciesImage handle changes in selected session image
+    * Previews either image file name and image itself
+    * @return void
+    */
+   function changeSpeciesImage() {
+     // Reference to input file browser
+     var $browser = $('#species-image-browser');
+     // eference to image preview
+     var $preview = $('#species-image-preview');
+     // previews file name
+     $browser.previewFileName();
+     // previews image
+     $preview.previewImage($browser.get(0).files[0]);
+   }
+
+   function keyupGroup() {
+     $(this).validate();
+   }
+
+   /**
+    * @function clickSaveButton defines actions executes on save button click
+    * First checks if it is enabled (should be enabled only when there isn't any error)
+    * If it is enabled: serializes form data, sends it to server, executes action on result
+    */
+   function clickSaveButton(){
+     // Saves button reference
+     var $button = $(this);
+     var $section = $button.closest('.section');
+
+     // Substitutes every previous message with "Validating..."
+     $section.siblings('#save-message').remove();
+     $section.before($('<div/>', {
+       id: 'save-message',
+       class: 'section alert alert-secondary',
+       role: 'alert',
+       text: 'Validating...'
+     }));
+
+     // Disables every input field
+     $fields.each(function(){
+       $(this).prop('disabled', true);
+     });
+     // Disables button
+     $button.prop('disabled', true);
+
+     // First of all: validates every field
+     validateConfigSession(function(result){
+
+       // Case error during validation re enables all fields and button, then stops saving execution
+       if(!result) {
+         // Disables every input field
+         $fields.each(function(){
+           $(this).prop('disabled', false);
+         });
+         // Disables button
+         $button.prop('disabled', false);
+         // Shows error message
+         $section.siblings('#save-message')
+          .removeClass('alert-secondary')
+          .addClass('alert-danger')
+          .text('There are some errors which prevent changes from being saved correctly');
+         return;
+       }
+
+       // Case validation successful
+       // Serializes data
+       var data = serializeConfigSession();
+       // Saves data
+       saveConfigSession(data)
+        .done(function(data){
+          $section.siblings('#save-message')
+           .removeClass('alert-secondary')
+           .addClass('alert-primary')
+           .text('Data saved correctly');
+         })
+         // Checks errors during saving
+         .fail(function(data){
+           $section.siblings('#save-message')
+            .removeClass('alert-secondary')
+            .addClass('alert-danger')
+            .text('Some errors prevent changes from being saved correctly, check the form');
+         })
+         // After result retrieved
+         .always(function(data){
+           $fields.each(function(){
+             $(this).prop('disabled', false);
+           });
+           $button.prop('disabled', false);
+         });
      });
    }
 </script>

@@ -46,15 +46,15 @@ class ApiSpeciesController extends ApiController {
     if(isset($get['name'])) {
       $name = $get['name'];
       // Searches species names which starts with passed name
-      $select['conditions']['Species.organism'] = "Species.organism LIKE $name.%";
+      $select['conditions'][] = array('Species.organism LIKE' => "$name%");
     }
     // Searches by species 5code only if specified
     if(isset($get['5code'])) {
-      $select['conditions']['Species.5code'] = $get['5code'];
+      $select['conditions'][] = array('Species.5code' => $get['5code']);
     }
     // Searches by species taxid only if specified
     if(isset($get['taxid'])) {
-      $select['conditions']['Species.NCBI_taxid'] = $get['taxid'];
+      $select['conditions'][] = array('Species.NCBI_taxid' => $get['taxid']);
     }
     // Limits output (client gets a faster response because it )
     if(isset($get['limit']) && is_int($get['limit']) && $get['limit'] >= 0) {
@@ -87,7 +87,7 @@ class ApiSpeciesController extends ApiController {
     $species = $this->Species->find('all', $select);
     // Parses every row
     foreach($species as &$s) {
-      $s = $this->Species->parseSpecies($s['Species'], '');
+      $s = $s['Species'];
     }
 
     // Sets response code

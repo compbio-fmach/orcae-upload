@@ -6,24 +6,20 @@
  *  - warnings (non-blocking): advise that the user can save data,
  *    but will not be able to go on with update of the system with those saved data
  */
-function SessionConfigValidator() {
+function Validator() {
 
   // Warnings definitions
   this.warnings = {
-    'species_name': {
-      regex: /^.{1,}$/, // species name should be letters only
-      message: "Species name should be set"
-    },
     'species_taxid': {
       regex: /^\d{1,}$/,
       message: "Species taxonomy id should be set"
     },
     'species_5code': {
-      regex: /^[a-zA-Z0-9]{5}$/,
+      regex: /^.{5}$/,
       message: "Species shortname should contain 5 chars"
     },
     'group_description': {
-      regex: /^.{1,255}$/,
+      regex: /^.{1,}$/,
       message: "Group description should be set"
     },
     'gorup_welcome': {
@@ -35,22 +31,36 @@ function SessionConfigValidator() {
   // Blocking-errors definitions
   this.errors = {
     'species_taxid': {
-      regex: /^(|\d{0,})$/,
+      regex: /^\d{0,}$/,
       message: "Species taxonomy must contain only digits"
     },
     'species_name': [
       {
         regex: /^.{0,50}$/,
-        message: 'Species name exceeds maximum 50 chars lenght'
+        message: 'Species must be less than 50 chars long'
       },
       {
-        regex: /^[a-zA-Z0-9\s]{1,}$/,
-        message: 'Species name must be alphanumeric'
+        regex: /^[a-zA-Z0-9\s]{0,}$/,
+        message: 'Species name must contain only numbers, letters and spaces'
+      },
+      {
+        regex: /^.{1,}$/,
+        message: 'Species name must be set'
       }
     ],
-    'species_5code': {
-      regex: /^[a-zA-Z-0-9]{0,5}$/,
-      message: 'Species shortname exceeds 5 chars length'
+    'species_5code': [
+      {
+        regex: /^.{0,5}$/,
+        message: 'Species shortname must be less than 5 chars long'
+      },
+      {
+        regex: /^[a-zA-Z0-9]{0,}$/,
+        message: 'Species shortname must contain only numbers and letters'
+      }
+    ],
+    'group_description': {
+      regex: /^.{0,255}$/,
+      message: 'Group description must be less than 255 chars long'
     }
   }
 

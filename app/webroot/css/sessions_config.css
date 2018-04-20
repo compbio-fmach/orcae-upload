@@ -80,3 +80,7 @@ form.section {
 .section-item small {
   display: block !important;
 }
+
+.species-name-hint {
+  text-decoration: underline;
+}

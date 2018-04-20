@@ -1,6 +1,6 @@
 <?php
 /**
- * ApiSessionsController implements /API/sessions routes
+ * ApiGenomeCSController implements /API/genomecs routes
  * Being an API controller, it does not render pages
  */
 App::uses('ApiController', 'Controller'); // Required to extend ApiController
@@ -309,9 +309,9 @@ class ApiGenomeCSController extends ApiController {
             }
             $validation['warnings']['species_image'][] = "It was not possible to upload species image";
           }
-          // Loads species image into resource that will be returned
-          $this->GenomeCS->loadSpeciesImage($genomecs, $this->webroot);
         }
+        // Loads species image into resource that will be returned
+        $this->GenomeCS->loadSpeciesImage($genomecs, $this->webroot);
         // Sets successful http header
         $this->response->statusCode(200);
         // Returns id of saved genomecs into body
