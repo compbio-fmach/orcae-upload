@@ -1,3 +1,8 @@
+# Files uploaded into orcae-upload by users #
+#############################################
+/app/webroot/files/**
+/app/webroot/images/**
+
 # User specific & automatically generated files #
 #################################################
 /app/Config/database.php

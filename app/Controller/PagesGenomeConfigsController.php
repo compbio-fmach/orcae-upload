@@ -1,20 +1,32 @@
 <?php
+App::uses('PagesController', 'Controller');
+class PagesGenomeConfigsController extends PagesController {
 
-/**
-* Controller for sessions pages
-* This handles the operations done before the page are rendered
-*/
-class GenomeCSController extends AppController {
+  public function beforeFilter() {
+    parent::beforeFilter();
 
+    // Checks authorization
+    if(!$this->Auth->loggedIn()) {
+      $this->redirect('/');
+    }
+    // Sets page folder (views are taken from there)
+    $this->viewPath = '/GenomeConfigs/';
+  }
+
+  public function index() {}
+
+  public function config($id = null) {
+    // Sets id for view
+    $this->set('id', $id);
+  }
+
+  public function uploads($id = null) {
+    $this->set('id', $id);
+  }
+
+  /*
    // defines models used inside this controller
    public $uses = array('User', 'GenomeCS');
-
-  /**
-   * Initializes common elements of pages
-   * Checks if user is authenticated: if not, redirects to /login page
-   * Executed before other controller actions
-   * @return void
-   */
    public function beforeFilter() {
      // Calls parent initialization
      parent::beforeFilter();
@@ -28,23 +40,12 @@ class GenomeCSController extends AppController {
      }
    }
 
-  /**
-   * @method index renders /genomecs/ page
-   * @return void
-   */
    public function index() {}
 
-   /**
-    * @method config reders page /genomecs/id
-    * @param id 'new' is not a valid id, therefore renders an empty form
-    * @return void
-    */
+
    public function config($id = 'new') {}
 
-   /**
-    * @method renders /genomecs/render/ upload interface
-    * @return void
-    */
+
    public function uploads($id = null) {
      // Retrieves current user object (as an associative array)
      $user = $this->User->getUser();
@@ -61,7 +62,6 @@ class GenomeCSController extends AppController {
        $this->redirect('/');
      }
    }
-
+   */
 }
-
 ?>

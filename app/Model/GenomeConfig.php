@@ -1,22 +1,22 @@
 <?php
 /**
- * Genome Configuration Session model
- * This model is bound to 'orcae_upload'.'genomecs' table
+ * Genome Configuration model
+ * This model is bound to 'orcae_upload'.'genome_config' table
  */
 App::uses('Folder', 'Utility'); // Required for folder handling (used with species_image)
 App::uses('File', 'Utility'); //Required for file handling
-class GenomeCS extends AppModel {
+class GenomeConfig extends AppModel {
 
     // Defines database where table bound to SessionConfig is
     public $useDbConfig = 'orcae_upload';
     // Defines table bound to SessionConfig
-    public $useTable = 'genomecs';
+    public $useTable = 'genome_configs';
 
     // Empty array of validation rules, will be filled with errors and warnings later
     public $validate = array();
 
     // Defines error validation rules for cakephp validation
-    protected $genomecsErrors = array(
+    protected $errors = array(
       'type' => array(
         'rule' => array('inList', array('insert', 'update')),
         'required' => true,
@@ -46,7 +46,7 @@ class GenomeCS extends AppModel {
     );
 
     // Defines warning validation rules for cakephp validation
-    protected $genomecsWarnings = array(
+    protected $warnings = array(
       'species_taxid' => array(
         'rule' => '/^\d{1,}$/',
         'allowEmpty' => false,
@@ -70,36 +70,49 @@ class GenomeCS extends AppModel {
      * @return true in no error/warning found
      * @return array of errors and warnings if errors or warning have been found
      */
-    public function validateGenomeCS($genomecs) {
+    public function validate($data) {
+      // Data about errors and warnings to be returned
+      $result = array();
+      // Sets data to be validated
+      $this->set($data);
       // Defines result variable to be returned
-      $result = array(
-        'errors' => array(),
-        'warnings' => array()
+      $toValidate = array(
+        'errors' => $this->errors,
+        'warnings' => $this->warnings
       );
 
-      // First of all, sets session data into model
-      $this->set($genomecs);
-
-      // Secondly, sets blocking-error validation rules
-      $this->validate = $this->genomecsError;
-      // Cleares previously set validation error messages
-      $this->validationErrors = array();
-      // Validates blocking errors using cakephp model's function validates()
-      if(!$this->validates()) {
-        // Puts found errors into result
-        $result['errors'] = $this->validationErrors;
-      }
-
-      // Validates warnings
-      $this->validate = $this->genomecsWarnings;
-      $this->validationErrors = array();
-      if(!$this->validates()) {
-        $result['warnings'] = $this->validationErrors;
+      foreach($toValidate as $i => $v) {
+        $this->validate = $v;
+        // Empty validation errors previous results
+        $this->validationErrors = array();
+        $result[$i] = array();
+        if(!$this->validates()) {
+          $result[$i] = $this->validationErrors;
+        }
       }
 
       // Returns true if no errors or warnings, otherwise returns error and warning messages found
       $count = count($result['warnings']) + count($result['errors']);
       return ($count > 0) ? $result : true;
+    }
+
+    /**
+     * @method parse takes a n array and mantains only model's fields
+     * Used when a GenomeConfig istance is sent through http request
+     * @return array representing an istace of GenomeConfig
+     */
+    public function parse($data) {
+        $gc = array();
+        // Defines session schema using DB table
+        $schema = $this->schema();
+        // Parses session using schema fields
+        foreach($schema as $i => $field) {
+          // Checks if value corresponding to current index is set into paramters array
+          // If it is set, puts it as value for the current index, else puts null
+          $gc[$i] = isset($data[$i]) ? $data[$i] : null;
+        }
+        // Returns parsed session (as an associative array)
+        return $gc;
     }
 
     /**

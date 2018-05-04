@@ -23,3 +23,17 @@ form.section {
 .section-item .progress {
   margin-top: 10px;
 }
+
+.section {
+  margin-top: 30px;
+}
+.section#file-uploader {
+  margin-bottom: -15px;
+}
+
+.file-row {
+  margin-bottom: 15px;
+}
+.file-row .progress {
+  margin-top: 5px;
+}

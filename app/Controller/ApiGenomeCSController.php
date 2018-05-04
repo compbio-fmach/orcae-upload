@@ -14,7 +14,7 @@ class ApiGenomeCSController extends ApiController {
    * @param _genomecs is the associative array of genomecs before parsing
    * @return array corresponding to parsed genomecs
    */
-  protected function parseGenomeCS($_genomecs) {
+  protected function parseGenomecs($_genomecs) {
 
     // Defines session var to be returned
     $genomecs = array();

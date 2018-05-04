@@ -30,20 +30,4 @@ App::uses('Controller', 'Controller');
  * @package		app.Controller
  * @link		https://book.cakephp.org/2.0/en/controllers.html#the-app-controller
  */
-class AppController extends Controller {
-
-  // Defines components used in this controller
-  public $components = array('Session');
-
-  // Defines models used in this controller
-  // Every controller uses User model, in order to access authenticated user info
-  public $uses = array('User');
-
-  // Initializes User from session, if any
-  public function beforeFilter() {
-    // Reads user from session
-    $user = $this->Session->read('OrcaeUpload.user');
-    // Puts user into User.user attribute
-    $this->User->initUser($user);
-  }
-}
+class AppController extends Controller {}

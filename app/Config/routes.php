@@ -27,36 +27,66 @@
  * The former are controllers which renders the views of orcae-upload
  * The latter are controllers which implements APIs of orcae upload
  */
+ Router::parseExtensions();
+
  // API routes for authentication (login and logout APIs)
+ // Router::connect('/API/login', array('controller' => 'ApiAuth', 'action' => 'login'));
+ // Router::connect('/API/logout', array('controller' => 'ApiAuth', 'action' => 'logout'));
+ // API routes for genome configuration sessions handling
+ // Router::connect('/API/genomecs', array('controller' => 'ApiGenomeCS'));
+ // Router::connect('/API/genomecs/:id', array('controller' => 'ApiGenomeCS'));
+ // API route for upload handling
+ // Router::connect(
+   //'/API/genomecs/:id/uploads',
+   //array('controller' => 'ApiGenomeUploads'),
+   //array('pass' => array('id'))
+ //);
+ // API route which returns default files value to authenticated users
+ // Router::connect('/API/defaults/:file', array('controller' => 'ApiDefaults'));
+ // API route which returns species stored into orcae_bogas.taxid table
+ // Router::connect('/API/species', array('controller' => 'ApiSpecies', '[method]' => 'GET', 'action' => 'read'));
+ Router::connect('/API/genome_configs/:id/uploads/',
+  array('controller' => 'ApiGenomeUploads', 'action' => 'index'),
+  array('pass' => array('id'))
+ );
+ Router::connect('/API/genome_configs/*', array('controller' => 'ApiGenomeConfigs'));
+ Router::connect('/API/species/*', array('controller' => 'ApiSpecies'));
  Router::connect('/API/login', array('controller' => 'ApiAuth', 'action' => 'login'));
  Router::connect('/API/logout', array('controller' => 'ApiAuth', 'action' => 'logout'));
- // API routes for genome configuration sessions handling
- Router::connect('/API/genomecs', array('controller' => 'ApiGenomeCS'));
- Router::connect('/API/genomecs/:id', array('controller' => 'ApiGenomeCS'));
- // API route for upload handling
- Router::connect(
-   '/API/genomecs/:id/uploads',
-   array('controller' => 'ApiGenomeUploads'),
-   array('pass' => array('id'))
- );
- // API route which returns default files value to authenticated users
- Router::connect('/API/defaults/:file', array('controller' => 'ApiDefaults'));
- // API route which returns species stored into orcae_bogas.taxid table
- Router::connect('/API/species', array('controller' => 'ApiSpecies', '[method]' => 'GET', 'action' => 'read'));
- // API default route returns 404 API not found
  Router::connect('/API/*', array('controller' => 'Api', 'action' => 'index'));
 
- // If route is /sessions, uses SessionsController in order to render the correct page
- Router::connect('/genomecs', array('controller' => 'GenomeCS', 'action' => 'index'));
- Router::connect('/genomecs/:id', array('controller' => 'GenomeCS', 'action' => 'config'));
- Router::connect('/genomecs/:id/uploads',
-  array('controller' => 'GenomeCS', 'action' => 'uploads'),
+ // Render upload page
+ Router::connect('/genome_configs/:id/uploads/',
+  array('controller' => 'PagesGenomeConfigs', 'action' => 'uploads'),
   array('pass' => array('id'))
-);
+ );
+ // Render config page
+ Router::connect('/genome_configs/:id/',
+  array('controller' => 'PagesGenomeConfigs', 'action' => 'config'),
+  array('pass' => array('id'))
+ );
+ // Render config default page
+ Router::connect('/genome_configs/',
+  array('controller' => 'PagesGenomeConfigs', 'action' => 'index')
+ );
+ // Render login page
+ Router::connect('/login/',
+  array('controller' => 'PagesLogin', 'action' => 'index')
+ );
+ // Handles default routes
+ Router::connect('/*', array('controller' => 'Pages'));
+
+ // If route is /sessions, uses SessionsController in order to render the correct page
+ // Router::connect('/genomecs', array('controller' => 'GenomeCS', 'action' => 'index'));
+ // Router::connect('/genomecs/:id', array('controller' => 'GenomeCS', 'action' => 'config'));
+ // Router::connect('/genomecs/:id/uploads',
+//   array('controller' => 'GenomeCS', 'action' => 'uploads'),
+//   array('pass' => array('id'))
+// );
  // If route is /login, uses LoginController to render the login page
- Router::connect('/login', array('controller' => 'Login'));
+ // Router::connect('/login', array('controller' => 'Login'));
  // Redirects to default page, which is /sessions, if any route has been matched
- Router::redirect('/*', array('controller' => 'GenomeCS', 'action' => 'index'));
+ // Router::redirect('/*', array('controller' => 'GenomeCS', 'action' => 'index'));
 
 /**
  * Load all plugin routes. See the CakePlugin documentation on

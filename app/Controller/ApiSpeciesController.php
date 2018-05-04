@@ -15,25 +15,28 @@ class ApiSpeciesController extends ApiController {
   public $uses = array('Species');
 
   public function beforeFilter() {
-    // Initializes user
     parent::beforeFilter();
     // Checks authorization
-    if(!$this->User->getUser()) {
-      // thorws error 401 user not authorized
+    if(!$this->Auth->loggedIn()) {
       $this->error401();
-      // sends response
-      $this->response->send();
-      // stops execution flow
-      $this->_stop();
     }
   }
 
-  /**
-   * @method read implements CRUD's READ method
-   * Responds with found species
-   * @return void
-   */
-  public function read() {
+  public function index() {
+    $this->restify();
+  }
+
+  protected function create() {
+    $this->error404();
+  }
+
+  public function read($id) {
+
+    if(!empty($id)) {
+      $this->error404();
+      return;
+    }
+
     // Array of conditions which will be passed to search query
     $select = array(
       'conditions' => array()
@@ -93,7 +96,16 @@ class ApiSpeciesController extends ApiController {
     // Sets response code
     $this->response->statusCode(200);
     // Sets response body
-    $this->response->body(json_encode($species));
+    $this->set('species', $species);
+    $this->set('_serialize', 'species');
+  }
+
+  protected function update() {
+    $this->error404();
+  }
+
+  protected function delete() {
+    $this->error404();
   }
 }
 

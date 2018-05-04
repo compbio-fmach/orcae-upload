@@ -1,29 +1,58 @@
 <?php
 /**
  * ApiController is the parent of every API controller
- * It configures a controller to return http response instead of rendering a view
+ * It configures a controller to return http response
+ * Response body is returned through cakephp's json or xml view rendering
  */
 App::uses('AppController', 'Controller');
 class ApiController extends AppController {
 
-  /**
-   * Set response format for an API
-   * No view must be rendered
-   * @return void
-   */
+  public $uses = array('User');
+
+  public $components = array('RequestHandler', 'Auth');
+
   public function beforeFilter() {
-    // Calls for parent inizialization
-    parent::beforeFilter();
-    // Disables view auto-rendering
-    $this->autoRender = false;
+    // Defines response as json
+    $this->RequestHandler->renderAs($this, 'json');
+    // From there on allows every route
+    $this->Auth->allow();
+  }
+
+  public function index() {
+    $this->error404(null, true);
+  }
+
+  public function prova() {
+    $this->redirect('/API/login');
   }
 
   /**
-   * @method index responds with 404 API not found by default
-   */
-  public function index() {
-    $this->error404();
-  }
+  * @method restify redirects ot CRUD operations, checkoing out method used for request
+  * Put it into index @method to create a restful api controller
+  * GET / calls read()
+  * GET /:id calls read(id)
+  * POST / calls create()
+  * POST/:id and PUT/:id calls update()
+  * DELETE /:id calls delete()
+  */
+  public function restify($id = null) {
+     $method = $this->request->method();
+     switch($method) {
+       case 'GET':
+         $this->read($id);
+         break;
+       case 'POST':
+         if(!empty($id)) $this->update($id);
+         else $this->create();
+         break;
+       case 'PUT':
+         $this->update($id);
+         break;
+       case 'DELETE':
+         $this->delete($id);
+         break;
+     }
+   }
 
   /**
    * @method errorXxx returns a message with a status code and a plain text message
@@ -32,13 +61,18 @@ class ApiController extends AppController {
    * @param http specifies an http code
    * @return void
    */
-  protected function errorXxx($error, $http) {
+  protected function errorXxx($error, $http, $send = false) {
     // Sets response http code
-    $this->response->statusCode(404);
+    $this->response->statusCode($http);
     // Sets response error message
-    $this->response->body($error);
-    // Returns response
-    return $this->response;
+    $this->set('error', $error);
+    // Renders error through JSON or XML views
+    $this->set('_serialize', 'error');
+
+    // Sends response and stops execution flow
+    if($send) {
+      $this->render();
+    }
   }
 
   /**
@@ -48,14 +82,14 @@ class ApiController extends AppController {
    * @param error is an optional error message that overrides original one
    * @return void
    */
-  protected function error404($error = null) {
+  protected function error404($error = null, $send = false) {
     // If empty error param, sets default error message
     if(empty($error)) {
       $error = "Requested API has not been found!";
     }
 
     // Responds with error message
-    return $this->errorXxx($error, 404);
+    $this->errorXxx($error, 404, $send);
   }
 
   /**
@@ -67,7 +101,7 @@ class ApiController extends AppController {
    * @param http is an optional http code to be returned with the response (default = 500)
    * @return void
    */
-  protected function error5xx($error = null, $http = 500) {
+  protected function error5xx($error = null, $http = 500, $send = false) {
     // Checks if error string is empty
     if(empty($error)) {
       // If error string is empty, responds with a generic error message
@@ -75,7 +109,7 @@ class ApiController extends AppController {
     }
 
     // Responds with error message
-    return $this->errorXxx($error, $http);
+    $this->errorXxx($error, $http, $send);
   }
 
   /**
@@ -84,9 +118,9 @@ class ApiController extends AppController {
    * Responds http status 401 along with error message
    * @return void
    */
-  protected function error401() {
+  protected function error401($send = false) {
     // Responds with error message
-    return $this->errorXxx("Unauthorized user cannot access this resource", 401);
+    $this->errorXxx("Unauthorized user", 401, $send);
   }
 }
 ?>
