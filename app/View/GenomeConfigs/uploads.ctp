@@ -17,43 +17,40 @@ $this->Html->script('pages/genome_configs_uploads', array('inline' => false));
 <div class="main container">
   <div class="row">
     <div class="col-md-8 offset-md-2">
-
-      <!-- File uploader: starts a new genome upload -->
-      <form class="section" id="file-uploader">
-        <!-- title -->
-        <h4 class="section-title">Upload files</h4>
-
-        <div class="row">
-          <div class="col-3">
-            <!-- Which file is going to be uploaded -->
-            <div class="form-group">
-              <select class="form-control" id="type">
-                <option value=''>Select type</option>
-                <option value='genome'>Genome</option>
-                <option value='annot'>Annotation</option>
-                <!-- <option value='others'>Other</option> -->
+      <div class="section" id="uploader">
+        <!-- Title -->
+        <h4 class="section-title">Upload new file</h4>
+        <!-- Example of genome file uploader -->
+        <div class="file-uploader">
+          <!-- First row contains file selector and commands -->
+          <div class="row">
+            <!-- Type selector -->
+            <div class="col-4">
+              <select class="form-control" id="uploader-type">
+                <option vlaue="">Select type</option>
+                <option value="genome">Genome</option>
+                <option value="annot">Annotation</option>
               </select>
             </div>
-          </div>
-          <div class="col-6">
-            <!-- Source file -->
-            <div class="custom-file">
-              <input type="file" class="custom-file-input" name="files[]" id="file">
-              <label class="custom-file-label" for="file">Choose file...</label>
+            <!-- File selector -->
+            <div class="col-6">
+              <div class="custom-file">
+                <input type="file" class="custom-file-input" name="files[]" id="uploader-files">
+                <label class="custom-file-label" for="uploader-files">Choose file...</label>
+              </div>
+            </div>
+            <!-- Start upload button -->
+            <div class="col-2">
+              <button type="button" class="btn btn-primary btn-block" id="uploader-upload">Upload</button>
             </div>
           </div>
-          <div class="col-3">
-            <!-- Button which triggers the upload -->
-            <button type="button" class="btn btn-primary" id='upload'>Upload</button>
-          </div>
         </div>
-      </form>
-
+      </div>
       <!-- Genome upload section -->
       <div class="section" id="genome">
-        <!-- title -->
+        <!-- Title -->
         <h4 class="section-title">Genome files</h4>
-        <!-- alert -->
+        <!-- Alert -->
         <div class="alert alert-warning" role="alert">
           No genome file has been uploaded yet!
         </div>
@@ -67,19 +64,6 @@ $this->Html->script('pages/genome_configs_uploads', array('inline' => false));
         <div class="alert alert-warning" role="alert">
           No annotation file has been uploaded yet!
         </div>
-
-        <!--
-        <div class="row">
-          <div class="col-3">
-            #1 file name
-          </div>
-          <div class="col-9">
-            <div class="progress">
-              <div class="progress-bar" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-          </div>
-        </div>
-        -->
       </div>
 
       <!-- Allows other files to be uploaded -->

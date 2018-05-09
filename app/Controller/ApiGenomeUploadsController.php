@@ -25,7 +25,7 @@ class ApiGenomeUploadsController extends ApiController {
 
   // Index function taken from https://github.com/hugodias/FileUpload/blob/master/Controller/HandlerController.php
   // Licensed under MIT
-  public function index($id = null) {
+  public function index($id = null, $title = null) {
     $this->GenomeUpload->set_genome_config_id($id);
     $method = $this->request->method();
     switch ($method) {
@@ -43,7 +43,7 @@ class ApiGenomeUploadsController extends ApiController {
 		        }
 		        break;
 		    case 'DELETE':
-		        $this->GenomeUpload->delete();
+		        $this->GenomeUpload->delete(true, $title);
 		        break;
 		    default:
 		        header('HTTP/1.1 405 Method Not Allowed');

@@ -278,7 +278,7 @@ class GenomeUploadComponent extends UploadComponent {
             $file = $file['GenomeUpload'];
             $file['uploaded'] = $this->get_file_size($this->get_upload_path($file['name']));
           }
-          
+
           // Puts files into response
           $response = array(
               // e.g. options['param_name'] == $_GET['files']
@@ -293,47 +293,38 @@ class GenomeUploadComponent extends UploadComponent {
    * Does not use parent funztion: overwrites it
    * @return response
    */
-   public function delete($print_response = true) {
-     $file_names = $this->get_file_names_params();
-     if (empty($file_names)) {
-         $file_names = array($this->get_file_name_param());
+   public function delete($print_response = true, $title = null) {
+     if(empty($title)) {
+       $file_names = array();
+     } else {
+       // Executes query to retrieve file names bound to passed title
+       $file_names = $this->GenomeUpload->find(
+         'all',
+         array(
+           'conditions' => array(
+             'GenomeUpload.user_id' => $this->Auth->user('id'),
+             'GenomeUpload.config_id' => $this->get_genome_config_id(),
+             // Searches by array of ile names
+             'GenomeUpload.title' => $title,
+           ),
+           'fields' => array('GenomeUpload.name')
+         )
+       );
+
+       // Parses file names
+       foreach($file_names as &$file_name) {
+         $file_name = $file_name['GenomeUpload']['name'];
+       }
      }
 
-     // Executes query to check if file can be deleted
-     $file_names = $this->GenomeUpload->find(
-       'all',
-       array(
-         'conditions' => array(
-           'GenomeUpload.user_id' => $this->Auth->user('id'),
-           'GenomeUpload.config_id' => config_id,
-           // Searches by array of ile names
-           'GenomeUpload.name' => $file_names,
-           'NOT' => array(
-             // Avoids deleting already deleted files
-             'GenomeUpload.status' => 'deleted'
-           )
-         ),
-         'fields' => array('GenomeUpload.name')
-       )
-     );
-
-     // Parses file names
-     foreach($file_names as &$file_name) {
-       $file_name = $file_name['GenomeUpload'];
-     }
-
-     // Sets files to as deleted
-     $this->GenomeUpload->updateAll(array(
-       'GenomeUpload.user_id' => $this->Auth->user('id'),
-       'GenomeUpload.config_id' => config_id,
-       // Searches by array of ile names
+     // Deletes from database every file name
+     $this->GenomeUpload->deleteAll(array(
        'GenomeUpload.name' => $file_names,
-       'NOT' => array(
-         // Avoids deleting already deleted files
-         'GenomeUpload.status' => 'deleted'
-       )
-     ), false);
+       'GenomeUpload.user_id' => $this->Auth->user('id'),
+       'GenomeUpload.config_id' => $this->get_genome_config_id()
+     ));
 
+     // Phisically deletes files
      $response = array();
      foreach ($file_names as $file_name) {
        $file_path = $this->get_upload_path($file_name);

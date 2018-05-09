@@ -28,8 +28,8 @@
  * The latter are controllers which implements APIs of orcae upload
  */
  Router::parseExtensions();
- 
- Router::connect('/API/genome_configs/:id/uploads/',
+
+ Router::connect('/API/genome_configs/:id/uploads/*',
   array('controller' => 'ApiGenomeUploads', 'action' => 'index'),
   array('pass' => array('id'))
  );

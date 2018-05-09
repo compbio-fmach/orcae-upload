@@ -340,6 +340,8 @@ $(function() {
       $('#go-to-genome-uploads').show();
     })
     .fail(function(data){
+      // Sets id as empty
+      GenomeConfig.data.id = '';
       // Sets editor default values
       $('#config-file-bogas, #config-file-species').each(function(){
         var $self = $(this);

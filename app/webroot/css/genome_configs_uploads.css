@@ -37,3 +37,10 @@ form.section {
 .file-row .progress {
   margin-top: 5px;
 }
+
+.file-uploader {
+  margin-bottom: 10px;
+}
+.file-uploader > .row {
+  margin-bottom: 5px;
+}
