@@ -24,9 +24,15 @@ class GenomeConfig extends AppModel {
         'message' => "Selected session type is not valid"
       ),
       'species_name' => array(
-        'rule' => '/^[a-zA-Z0-9]{0,255}$/',
-        'allowEmpty' => true,
-        'message' => "Species name must not exceed 255 limit of simple chars"
+        'species_name_format' => array(
+          'rule' => '/^[a-zA-Z0-9\s]{0,255}$/',
+          'allowEmpty' => true,
+          'message' => "Species name must not exceed 255 limit of simple chars"
+        ),
+        'species_name_congruency' => array(
+          'rule' => 'validateSpecies',
+          'message' => "Species attributes does not match any species data currently on Orcae"
+        )
       ),
       'species_taxid' => array(
         'rule' => '/^\d+$/',
@@ -56,163 +62,82 @@ class GenomeConfig extends AppModel {
         'rule' => '/^[a-zA-Z0-9]{5}$/',
         'allowEmpty' => false,
         'message' => 'Species shortname should be set as a string of 5 chars'
-      ),
-      'species_image' => array(
-        'rule' => array('validateSpeciesImage', 'extension'),
-        'allowEmpty' => true,
-        'message' => 'Species image type not supported'
       )
     );
 
     /**
-     * @method validateErrors validates input before saving it into database
-     * @param session is the session with data to be evaluated
-     * @return true in no error/warning found
-     * @return array of errors and warnings if errors or warning have been found
+     * @method validate
+     * Validates GenomeConfig passed as associative array
+     * Validates only set fields (which could be empty however)
+     * @param data is the Genome Configuration which will be validated
+     * @param type specifies to validate errors, warnings or both
+     * @return array of errors and warnings
      */
-    public function validate($data) {
-      // Data about errors and warnings to be returned
-      $result = array();
+    public function validate($data, $type = null) {
+      if($type != 'errors' && $type != 'warnings') {
+        // Data about errors and warnings to be returned
+        $return = array(
+          'errors' => $this->validate($data, 'errors'),
+          'warnings' => $this->validate($data, 'warnings')
+        );
+        // Deletes previous validation errors results
+        $this->validationErrors = array();
+        // Returns validation results
+        return $return;
+      }
+
+      // Defines validation rules
+      $rules = ($type == 'errors') ? $this->errors : $this->warnings;
+      // Removes rules which does not match data set fields
+      $rules = array_intersect_key($rules, $data);
       // Sets data to be validated
       $this->set($data);
-      // Defines result variable to be returned
-      $toValidate = array(
-        'errors' => $this->errors,
-        'warnings' => $this->warnings
-      );
-
-      foreach($toValidate as $i => $v) {
-        $this->validate = $v;
-        // Empty validation errors previous results
-        $this->validationErrors = array();
-        $result[$i] = array();
-        if(!$this->validates()) {
-          $result[$i] = $this->validationErrors;
-        }
-      }
-
-      // Returns true if no errors or warnings, otherwise returns error and warning messages found
-      $count = count($result['warnings']) + count($result['errors']);
-      return ($count > 0) ? $result : true;
+      // Sets validation rules
+      $this->validate = $rules;
+      // Deletes previous validation results
+      $this->validationErrors = array();
+      // Validates
+      $this->validates();
+      // Returns validation errors
+      return $this->validationErrors;
     }
 
     /**
-     * @method parse takes a n array and mantains only model's fields
-     * Used when a GenomeConfig istance is sent through http request
-     * @return array representing an istace of GenomeConfig
+     * @method validateSpecies
+     * This method validates if there is a species which matches name, taxid and 5code of validated data
+     * If
      */
-    public function parse($data) {
-        $gc = array();
-        // Defines session schema using DB table
-        $schema = $this->schema();
-        // Parses session using schema fields
-        foreach($schema as $i => $field) {
-          // Checks if value corresponding to current index is set into paramters array
-          // If it is set, puts it as value for the current index, else puts null
-          $gc[$i] = isset($data[$i]) ? $data[$i] : null;
-        }
-        // Returns parsed session (as an associative array)
-        return $gc;
+    public function validateSpecies($check) {
+      // Imports species model
+      $Species = ClassRegistry::init('Species');
+      // Retreives other fields
+      $data = $this->data['GenomeConfig'];
+      // Validates congruency only for update type
+      if($data['type'] != 'update') {
+        return true;
+      }
+      // Checks if species with same name, taxid and 5code exists on Orcae
+      $existsSpecies = $Species->find('count', array(
+        'conditions' => array(
+          'Species.organism' => $data['species_name'],
+          'Species.NCBI_taxid' => $data['species_taxid'],
+          'Species.5code' => $data['species_5code']
+        )
+      ));
+      return $existsSpecies > 0;
     }
 
     /**
-     * @method validateSpeciesImage sets a rule to validate species image
-     * It checks image extension
-     * @param check contains data to be evaluated
-     * @param field specifies which field must be evaluated
-     * TODO: check image size
-     * @return bool which states if the validation was successful or not
+     * @method getSpeciesImage
+     * Return species images of Genome Configuration given as param, if any
+     * @param data is an associative array representing Genome Configuration
+     * @return species_image url
      */
-    public function validateSpeciesImage($check, $field) {
-      // Defines image reference
-      $image = $check['species_image'];
-
-      // Validates image
-      switch($field) {
-
-        // Validates species image extensions
-        case 'extension':
-          // allows only jpg, png and jpeg file to be uploaded
-          return preg_match('/(jpg|jpeg|png)$/', pathinfo($image['name'], PATHINFO_EXTENSION));
-
-        case 'size':
-        default: return false;
-      }
-    }
-
-    /**
-     * @method loadSpeciesImage retrieves the species' image relative url from the given genome configuration session
-     * @param genomecs is the genome config session from where id attribute is taken
-     * @param prefix is the part of url that can be added before relative path
-     * @return void because url is set in session['species_image'] field
-     */
-    public function loadSpeciesImage(&$genomecs, $prefix = '') {
-
-      // Defines a partial path of species images folder
-      $imagesPath = 'img'.DS.'species_images'.DS;
-      // Defines species images directory path in server (2nd parameter specifies to create the folder if not found)
-      $imagesFolder = new Folder(WWW_ROOT.$imagesPath, true);
-
-      // Searches for species image files with name "species_image_<id>.<allowed type>"
-      $id = $genomecs['id'];
-      $images = $imagesFolder->find("^species_image_$id\.(jpeg|jpg|png)$");
-      // Search returns array of results
-      if(!empty($images)) {
-        // Sets species image attribute
-        $genomecs['species_image'] = $prefix.$imagesPath.$images[0];
-      }
-      // Sets species image attribute as empty
-      else {
-        $genomecs['species_image'] = null;
-      }
-    }
-
-    /**
-     * @method uploadSpeciesImage uploads species_image into images folder
-     * File is temporarily uploaded into @param genomecs['species_image'] (which is a reference to $_FILE['species_image'])
-     *
-     * @return true if image has been uploaded
-     * @return false otherwise
-     */
-    public function uploadSpeciesImage(&$genomecs) {
-
-      // Defines a pratial images folder path
-      $imagesPath = 'img'.DS.'species_images'.DS;
-
-      // Define server path to images folder
-      $imagesPath = WWW_ROOT.$imagesPath;
-
-      // Checks for upload errors
-      if($genomecs['species_image']['error'] != UPLOAD_ERR_OK) {
-        return false;
-      }
-
-      // Retrieves image extension
-      $extension = exif_imagetype($genomecs['species_image']['tmp_name']);
-      // If not valid extension found, returns an error
-      if(!$extension) {
-        return false;
-      }
-
-      // Retrieves images folder (creates it if nothing found)
-      $imagesFolder = new Folder($imagesPath, true);
-
-      // Searches for species image files with name "species_image_<id>.<allowed type>"
-      $images = $imagesFolder->find("^species_image_".$genomecs['id']."\.(.*)$");
-
-      // Deletes every image associated with the same session id
-      foreach ($images as $image) {
-        // Creates image file from directory path
-        $image = new File($imagesPath.$image);
-        // Deletes file
-        $image->delete();
-      }
-
-      // Creates image file url
-      // No need to check image_type_to_extension (already checked exif_imagetype before)
-      $image = 'species_image_'.$genomecs['id'].image_type_to_extension($extension, true);
-      // Moves file to images directory
-      return move_uploaded_file($genomecs['species_image']['tmp_name'], $imagesPath.$image);
+    public function getSpeciesImage($data) {
+      // List all matching images
+      $images = preg_grep('/^species_image_'.$data['id'].'\./', scandir(WWW_ROOT.'img/species_images/'));
+      // Returns only the first image found
+      return !empty($images) ? Router::url('/', true).'img/species_images/'.array_shift($images) : '';
     }
 }
 ?>

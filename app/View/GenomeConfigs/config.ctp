@@ -1,10 +1,10 @@
 <?php
-$this->assign('subtitle', "Edit Genome Configuration");
-$this->Html->css('genomeconfig_config', array('inline' => false));
-$this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', array('inline' => false));
-$this->Html->script('genome_config_validator', array('inline' => false));
-// Loads page's scripts
-$this->Html->script('pages/genomeconfigs_config', array('inline' => false));
+  $this->assign('subtitle', 'Edit Genome Configuration');
+  $this->Html->css('genome_configs_config', array('inline' => false));
+  $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', array('inline' => false));
+  $this->Html->script('validator', array('inline' => false));
+  // Loads page's scripts
+  $this->Html->script('pages/genome_configs_config', array('inline' => false));
 ?>
 
 <?php
@@ -81,10 +81,11 @@ $this->Html->script('pages/genomeconfigs_config', array('inline' => false));
               <img class='species-image-preview' id="species-image-preview" src="#" alt="">
             </div>
             <!-- image selector -->
-            <div class="custom-file">
+            <!-- <div class="custom-file">
               <input type="file" class="custom-file-input" id="species-image-browser" name="species_image" accept=".jpg">
               <label class="custom-file-label" for="species-image">Choose file</label>
-            </div>
+            </div> -->
+            <input type='file' id='species-image' name='species_image' value='' accept='.png, .jpg, .jpeg'>
             <!-- Info text -->
             <small class="text-muted">Image will be stretched or cropped to fit 155x155 px.</small>
           </div>
@@ -119,20 +120,32 @@ $this->Html->script('pages/genomeconfigs_config', array('inline' => false));
         <!-- yaml editor for orcae_bogas.yaml section -->
         <div class="section-item">
           <label for="group-welcome">orcae_bogas configuration section (.yaml)</label>
-          <div class="ace-editor" id="config-file-orcae"></div>
+          <div class="ace-editor" id="config-file-bogas"></div>
         </div>
 
         <!-- yaml editor for orcae_<species' shortname>.yaml -->
         <div class="section-item">
           <label for="group-welcome">orcae_&lt;species' shortname&gt; configuration file (.yaml)</label>
-          <div class="ace-editor" id="config-file-5code"></div>
+          <div class="ace-editor" id="config-file-species"></div>
         </div>
 
       </div>
 
+      <!-- This contains alerts of saving procedures -->
+      <div class="section" id="alert-genome-config" style="display:none"></div>
+
       <!-- Save changes button. Id does not need a section -->
-      <div class="section">
-        <button class="btn btn-primary btn-lg btn-block section-item" id="save-session" type="button">Save &check;</button>
+      <div class="section" id="actions">
+        <div class="row">
+          <div class="col-12">
+            <button class="btn btn-primary btn-block " id="save-genome-config" type="button">Save</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="offset-8 col-4">
+            <a class="btn btn-outline-primary btn-block" href="./uploads/" id="go-to-genome-uploads" style="display:none">Go to uploads</a>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -142,12 +155,17 @@ $this->Html->script('pages/genomeconfigs_config', array('inline' => false));
 
 <?php
   // Outputs bottom navbar. Param page specifies which state navbar must have.
-  echo $this->element('navbar.bottom', array('page' => 'config'));
+  // echo $this->element('navbar.bottom', array('page' => 'config'));
 ?>
 
 <!-- Page configuration scripts -->
 <script type="text/javascript">
-  var GenomeConfig = {
+  // Initializes GenomeConfig
+  if(typeof GenomeConfig == 'undefined') {
+    var GenomeConfig = {};
+  }
+  // Puts data into GenomeConfig object
+  GenomeConfig.data = {
     id: <?php echo json_encode($id); ?>
   }
 </script>

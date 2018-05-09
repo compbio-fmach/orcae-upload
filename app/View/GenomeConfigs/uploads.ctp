@@ -1,13 +1,13 @@
 <?php
 // Defines subtitle
 $this->assign('subtitle', "Genome Files Upload");
-$this->Html->css('genomeconfigs_uploads', array('inline' => false));
+$this->Html->css('genome_configs_uploads', array('inline' => false));
 // Chunk upload API
 $this->Html->script('fileuploader/vendor/jquery.ui.widget.js', array('inline' => false));
 $this->Html->script('fileuploader/jquery.iframe-transport.js', array('inline' => false));
 $this->Html->script('fileuploader/jquery.fileupload', array('inline' => false));
 
-$this->Html->script('pages/genomeconfigs_uploads', array('inline' => false));
+$this->Html->script('pages/genome_configs_uploads', array('inline' => false));
 ?>
 
 <!-- Navbar top -->

@@ -19,91 +19,65 @@ App::import('Vendor', 'Spyc', array('file' => 'spyc/Spyc.php'));
 
 class ApiDefaultsController extends ApiController {
 
-  // File that will be read
-  protected $file = null;
-  // File value that will be read and returned
-  protected $read = null;
+  // Files directory
+  protected $dir;
 
   // this API requires authentication
   public function beforeFilter() {
     // Initializes parent values
     parent::beforeFilter();
     // Checks if user is authorized
-    if(!$this->User->getUser()) {
-      // If user is not authorized, responds with http code '401 unauthorized'
-      $this->response = $this->error401();
-      // Sends response (automatic response doesn't get called due to _stop function)
-      $this->response->send();
-      // Exits the execution flow (do not want to execute methods taht require authentication)
-      $this->_stop();
+    if(!$this->Auth->loggedIn()) {
+      $this->error401(true);
     }
+
+    $this->dir = WWW_ROOT.DS.'files'.DS.'defaults';
   }
 
   // Retrieves file from passed param and returns file value
   public function index() {
     // Retrieves file name from parameters
-    $fileName = $this->params['file'];
+    $file = $this->request->query('file');
 
-    // Validates file name (one could pass ../../root, the system must deny those requests)
-    // Checks if file name is <name>.default.<type>
-    if(!preg_match('/^\w+\.default\.[a-zA-Z]+$/', $fileName)) {
-      return $this->errorXxx("Unvalid request has been issued!", 403);
+    if($file == 'config_species') {
+      $this->set('read', $this->readConfigSpecies());
+    }
+    else if( $file == 'config_bogas') {
+      $this->set('read', $this->readConfigBogas());
+    }
+    else {
+      $this->error404('Requested resource has not been found!');
+      return;
     }
 
-    // Defines defaults folder
-    $dir = new Folder(ROOT.DS.'app'.DS.'Config'.DS.'Defaults'.DS);
-    // Checks if error occurred while searching for Defaults directory
-    if(empty($dir->path)) {
-      return $this->error5xx();
-    }
-
-    // Searches for selected file
-    if(empty($dir->find($fileName))) {
-      // Returns error file not found
-      return $this->error404("Requested file not found!");
-    }
-
-    // If execution flow reaches this point, file has been found and can be read
-    $this->file = new File($dir->path.$fileName);
-    // Reads the selected file
-    $this->read = $this->file->read();
-
-    // Checks read errors
-    if(!$this->read) {
-      return $this->error5xx();
-    }
-
-    switch($fileName) {
-      // Config_5code.default.yaml needs to have some values parsed
-      case 'config_species.default.yaml':
-        // Calls config_orcae inizializarion function
-        $this->initConfigSpecies();
-      default:
-        // Set response http code as '200 OK'
-        $this->response->statusCode(200);
-        // Sets response body
-        $this->response->body($this->read);
-        // Exits the function
-        return $this->response;
-    }
+    // Sets response header as 200 OK
+    $this->response->statusCode(200);
+    // Defines response as yaml
+    $this->RequestHandler->renderAs($this, 'application/x-yaml');
+    $this->set('_serialize', 'read');
   }
 
-    /**
-     * @method initConfigSpecies initializes values of a copy of config_species.default.yaml
-     * Every request will have a custom default file
-     * @return void
-     */
-    protected function initConfigSpecies() {
-      $user = $this->User->getUser();
-      // writes out user and data fileds
-      // same syntax as Trpee_conf.default.yaml
-      $count = 1;
-      // Substitutes <username> with current user's username
-      $this->read = str_replace('<username>', '\''.$user['username'].'\'', $this->read, $count);
-      // Substitutes <today> with today's date
-      $this->read = str_replace('<today>', '\''.date('d/m/y').'\'', $this->read, $count);
-    }
+  protected function readConfigSpecies() {
+    // Retrieves user id
+    $user = $this->Auth->user('username');
+    // Retrieves file content
+    $file = new File($this->dir.DS.'config_species.yaml');
+    $read = $file->read();
+    // Number of times a string must be replaced
+    $count = 1;
+    // Substitutes <username> with current user's username
+    $read = str_replace('<username>', '\''.$user.'\'', $read);
+    // Substitutes <today> with today's date
+    $read = str_replace('<today>', '\''.date('d/m/y').'\'', $read);
 
+    return $read;
   }
 
+  protected function readConfigBogas() {
+    // Retrieves file content
+    $file = new File($this->dir.DS.'config_bogas.yaml');
+    $read = $file->read();
+    return $read;
+  }
+}
 ?>

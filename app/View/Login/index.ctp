@@ -16,8 +16,8 @@ $this->Html->script('pages/login', array('inline' => false));
 
   <!-- Form header -->
   <div class="text-center mb-4">
-    <img class="mb-4" src="https://getbootstrap.com/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
-    <h1 class="h3 mb-3 font-weight-normal">ORCAE-upload</h1>
+    <img class="mb-4" src="<?php echo $this->Html->url('/img/orcae-logo.png'); ?>" alt="Orcae-Upload" width="130" height="130">
+    <!-- <h1 class="h3 mb-3 font-weight-normal">ORCAE-upload</h1> -->
     <p>Sign in using ORCAE's credentials.</p>
   </div>
 

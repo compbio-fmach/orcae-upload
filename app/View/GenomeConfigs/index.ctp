@@ -6,10 +6,10 @@
 // Defines subtitle
 $this->assign('subtitle', "Your Genome Configurations");
 // Defines custom css
-$this->Html->css('genomecs', array('inline' => false));
+$this->Html->css('genome_configs', array('inline' => false));
 // Defines page scripts
 $this->Html->script('pages/navbar_top', array('inline' => false));
-$this->Html->script('pages/genomeconfigs_index', array('inline' => false));
+$this->Html->script('pages/genome_configs_index', array('inline' => false));
 ?>
 
 <!-- Top navbar -->
