@@ -7,27 +7,16 @@ $(function(){
       method: 'POST',
       // Passes serialized array to API inside POST body
       data: $('#credentials').serializeArray(),
-      dataType: 'json',
-      complete: function(xhr) {
-        // Retrieves response status
-        var http = xhr.status;
-        var message = ''
-
-        // Checks if response http code is '204' for successful login
-        if(xhr.status == 200) {
-          // Reloads page
-          location.reload();
-          return;
-        }
-        // Checks if response is '401 Not Authorized' or any other error message
-        else if (xhr.status == 401){
-          message = xhr.responseJSON;
-        } else {
-          message = xhr.responseText;
-        }
-
-        $('#error').html('<strong>Error!</strong> ' + message + '!').fadeIn();
-      }
+      dataType: 'json'
+    })
+    // If login was successfull, reloads and gets redirected to default page
+    .done(function(data){
+      location.reload();
+    })
+    // If login failed, shows error message
+    .fail(function(data){
+      var message = data.responseJSON ? data.responseJSON : data.responseText;
+      $('#error').html('<strong>Error!</strong> ' + message + '!').fadeIn();
     });
   });
 });

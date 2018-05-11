@@ -44,3 +44,8 @@ form.section {
 .file-uploader > .row {
   margin-bottom: 5px;
 }
+
+.section#actions #update-orcae,
+.section#actions #go-to-genome-config {
+  margin-top: 15px;
+}

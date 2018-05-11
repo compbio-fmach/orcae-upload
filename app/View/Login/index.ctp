@@ -37,7 +37,7 @@ $this->Html->script('pages/login', array('inline' => false));
   <div id="error" class="alert alert-danger" style="display:none;"></div>
 
   <!-- Login button -->
-  <button id="login-button" class="btn btn-lg btn-primary btn-block" type="button" onclick="login()">Sign in</button>
+  <button id="login-button" class="btn btn-lg btn-primary btn-block" type="button">Sign in</button>
 
   <!-- Redirects to Orcae for user issues -->
   <p class="text-muted text-center">Forgot username or password? <a href='#'>Check out ORCAE</a></p>

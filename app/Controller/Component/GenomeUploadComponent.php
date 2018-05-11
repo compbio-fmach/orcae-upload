@@ -59,7 +59,7 @@ class GenomeUploadComponent extends UploadComponent {
       // Searches if file exists
       if(is_file($this->get_upload_path($name))) {
         // Checks offset
-        if ($uploaded_bytes === $this->get_file_size($this->get_upload_path($name))) {
+        if ($uploaded_bytes == $this->get_file_size($this->get_upload_path($name))) {
           $unique_name = $name;
         }
       }
@@ -232,7 +232,7 @@ class GenomeUploadComponent extends UploadComponent {
           array(
             'conditions' => array(
               'GenomeUpload.user_id' => $this->Auth->user('id'),
-              'GenomeUpload.config_id' => $this->get_config_id(),
+              'GenomeUpload.config_id' => $this->get_genome_config_id(),
               'GenomeUpload.name' => $file_name
             )
           )

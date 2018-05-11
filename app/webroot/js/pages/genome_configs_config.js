@@ -13,7 +13,11 @@ GenomeConfig.loadForm = function() {
   }
   // Initializes form values
   $('[name=\'type\']').each(function(){
-    $(this).prop('checked', $(this).val() == data.type);
+    var checked = ($(this).val() == data.type)
+    // Stets checked if type matches
+    $(this).prop('checked', checked);
+    // Triggers click on checked radio button
+    $(this).trigger('click');
   });
   $('#species-name').val(data.species_name);
   $('#species-taxid').val(data.species_taxid);

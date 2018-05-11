@@ -75,9 +75,18 @@ $this->Html->script('pages/genome_configs_uploads', array('inline' => false));
         </div>
       </div>
 
-      <!-- Contains update button -->
-      <div class="section">
-        <button type="button" class="btn btn-primary btn-block" disabled>Update</button>
+      <!-- Save changes button. Id does not need a section -->
+      <div class="section" id="actions">
+        <div class="row">
+          <div class="col-12">
+            <button class="btn btn-primary btn-block " id="update-orcae" type="button" disabled>Update</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-4">
+            <a class="btn btn-outline-primary btn-block" id="go-to-genome-config" href="./../" >Go to genome configuration</a>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -85,7 +94,7 @@ $this->Html->script('pages/genome_configs_uploads', array('inline' => false));
 </div>
 
 <!-- Navbar bottom -->
-<?php echo $this->element('navbar.bottom', array('page' => 'uploads')); ?>
+<?php //echo $this->element('navbar.bottom', array('page' => 'uploads')); ?>
 
 <script type="text/javascript">
   // Initializes values for current page

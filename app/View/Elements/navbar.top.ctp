@@ -3,7 +3,7 @@
 
   <!-- title -->
   <a class="navbar-brand" href="<?php echo $this->Html->url('/', true); ?>">
-     <img src="<?php echo $this->Html->url('/img/orcae-logo.png'); ?>" width="30" height="30" alt="Orcae-Upload">
+     <img src="<?php echo $this->Html->url('/img/orcae-logo-horizontal.png'); ?>" width="80" height="32" alt="Orcae-Upload">
   </a>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
@@ -14,13 +14,13 @@
     <!-- left side -->
     <ul class="navbar-nav">
       <li class="nav-item <?php if($page == 'genomeconfigs') echo 'active'; ?>">
-        <a class="nav-link" href="<?php echo $this->Html->url('/genome_configs/', true); ?>">Sessions <?php if($page == 'genomeconfigs') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
+        <a class="nav-link" href="<?php echo $this->Html->url('/genome_configs/', true); ?>">Genome Configurations <?php if($page == 'genomeconfigs') echo "<span class=\"sr-only\">(current)</span>"; ?></a>
       </li>
     </ul>
 
     <!-- right side -->
     <ul class="navbar-nav ml-auto">
-      <li class="nav-item">
+      <li class="nav-item active">
         <a class="nav-link" id="logout" style="cursor:pointer;">Logout</a>
       </li>
     </ul>
