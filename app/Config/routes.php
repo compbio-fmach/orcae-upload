@@ -29,10 +29,16 @@
  */
  Router::parseExtensions();
 
- Router::connect('/API/genome_configs/:id/uploads/*',
+ // Handles Genome Configurations uploads
+ Router::connect('/API/genome_configs/:id/uploads/',
   array('controller' => 'ApiGenomeUploads', 'action' => 'index'),
   array('pass' => array('id'))
  );
+ // Handles Genome Configurations updates
+ Router::connect('/API/genome_configs/:id/updates/',
+  array('controller' => 'ApiGenomeUpdates', 'action' => 'index'),
+  array('pass' => array('id'))
+);
  Router::connect('/API/genome_configs/*', array('controller' => 'ApiGenomeConfigs'));
  Router::connect('/API/species/*', array('controller' => 'ApiSpecies'));
  Router::connect('/API/defaults/', array('controller' => 'ApiDefaults'));

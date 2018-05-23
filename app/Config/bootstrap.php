@@ -110,7 +110,12 @@ CakeLog::config('error', array(
 	'file' => 'error',
 ));
 
-/**
- * Configures orcae-upload
- * TODO
- */
+// ORCAE-upload app configuration
+// Sets chunkSize as 1000000 B = 1 MB
+Configure::write('OrcaeUpload.chunkSize', '1000000');
+// Sets path to Orcae web service
+Configure::write('OrcaeUpload.orcaeWeb', 'C:/xampp/htdocs/orcae/www/site/');
+// Sets path to perl scripts of Orcae
+Configure::write('OrcaeUpload.orcaeScripts', 'C:/xampp/htdocs/orcae/src/perl/programs');
+// Sets path to Orcae configuration folder
+Configure::write('OrcaeUpload.orcaeConfig', 'C:\xampp\htdocs\orcae\src\perl\modules');

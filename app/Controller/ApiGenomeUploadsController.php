@@ -3,16 +3,13 @@
  * ApiGenomeUploadsController implements /API/genomecs/upload routes
  * Being an API controller, it does not render pages
  */
-//App::import('Vendor', 'GenomeUploadHandler', array('file' => 'fileuploader/GenomeUploadHandler.php'));
 App::uses('ApiController', 'Controller');
 class ApiGenomeUploadsController extends ApiController {
 
-  public $uses = array('User', 'RequestHandler');
+  public $uses = array('User', 'RequestHandler', 'GenomeConfig');
   public $components = array(
     'Auth',
-    'GenomeUpload' => array(
-      'user_dirs' => true
-    )
+    'GenomeUpload'
   );
 
   public function beforeFilter() {
@@ -26,7 +23,8 @@ class ApiGenomeUploadsController extends ApiController {
   // Index function taken from https://github.com/hugodias/FileUpload/blob/master/Controller/HandlerController.php
   // Licensed under MIT
   public function index($id = null, $title = null) {
-    $this->GenomeUpload->set_genome_config_id($id);
+    // Fakes genome configuration passing only the id
+    $this->GenomeUpload->set_genome_config(array('id' => $id));
     $method = $this->request->method();
     switch ($method) {
 		    case 'OPTIONS':

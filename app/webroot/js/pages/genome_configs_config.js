@@ -13,11 +13,7 @@ GenomeConfig.loadForm = function() {
   }
   // Initializes form values
   $('[name=\'type\']').each(function(){
-    var checked = ($(this).val() == data.type)
-    // Stets checked if type matches
-    $(this).prop('checked', checked);
-    // Triggers click on checked radio button
-    $(this).trigger('click');
+    var checked = ($(this).val() == data.type);
   });
   $('#species-name').val(data.species_name);
   $('#species-taxid').val(data.species_taxid);
@@ -66,7 +62,7 @@ GenomeConfig.changeType = function() {
   var type = this.data.type;
   // Handles 'update' type: hides some sctions
   if(type == 'update') {
-    console.log('update')
+    console.log('update');
     $('#group, #config-files').hide();
   }
   // Handles 'insert' type: shows every section

@@ -26,21 +26,21 @@ $title = "Orcae-Upload ".trim($this->fetch('subtitle'));
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 
-	<!-- Defines an object which contains default values -->
+	<!-- Defines an object which contains common values, used in every page -->
 	<script type='text/javascript'>
 		var Defaults = {
 			webRoot: <?php echo json_encode($this->Html->url('/', true)); ?>,
-			apiRoot: <?php echo json_encode($this->Html->url('/API/', true)); ?>
+			apiRoot: <?php echo json_encode($this->Html->url('/API/', true)); ?>,
+			chunkSize: <?php echo json_encode(Configure::read('OrcaeUpload.chunkSize')); ?>
 		}
 	</script>
 
-  <?php
-		// Outputs orcae main stylesheet
-		echo $this->Html->css('main');
-    // Outputs resources included by specific page
-		echo $this->fetch('css');
-		echo $this->fetch('script');
-	?>
+	<!-- Orcae common stylesheet -->
+  <?php echo $this->Html->css('main'); ?>
+
+	<!-- Styles and scripts defined for the specific page called -->
+	<?php echo $this->fetch('css'); ?>
+	<?php echo $this->fetch('script'); ?>
 </head>
 <body>
 	<!-- Outputs page-specific content -->

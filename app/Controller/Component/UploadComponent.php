@@ -365,6 +365,7 @@ class UploadComponent extends Component {
         } else {
             $file_size = $content_length;
         }
+        //debug($file_size);
         if ($this->options['max_file_size'] && (
                 $file_size > $this->options['max_file_size'] ||
                 $file->size > $this->options['max_file_size'])
@@ -1050,7 +1051,10 @@ class UploadComponent extends Component {
                 mkdir($upload_dir, $this->options['mkdir_mode'], true);
             }
             $file_path = $this->get_upload_path($file->name);
+            //debug($file->name);
             $append_file = $content_range && is_file($file_path) && $file->size > $this->get_file_size($file_path);
+            //debug($append_file);
+            //debug(is_uploaded_file($uploaded_file));
             if ($uploaded_file && is_uploaded_file($uploaded_file)) {
                 // multipart/formdata uploads (POST method uploads)
                 if ($append_file) {
