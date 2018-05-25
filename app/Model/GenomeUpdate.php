@@ -23,20 +23,21 @@
     }
 
     // Retrieves update folder path, if any
-    public function getUpdatePath($userId, $updateId) {
-      $folder = new Folder(WWW_ROOT . 'files' . DS . 'genome_updates' . DS . $userId . DS . $updateId);
+    public function getUpdatePath($userId, $updateId, $create = false) {
+      // debug($userId);
+      // debug($updateId);
+      $folder = new Folder(WWW_ROOT . 'files' . DS . 'genome_updates' . DS . $userId . DS . $updateId, $create);
       return $folder->pwd();
     }
 
     // Retrieves script (used in getParser and getLoader)
     protected function getPerlScript($script) {
-      $folder = new File(Configure::read('OrcaeUpload.orcaeScripts', false));
+      $folder = new Folder(Configure::read('OrcaeUpload.orcaeScripts', false));
       if(!$folder) throw new Exception('Orcae\'s perl scripts folder not found');
+      // Searches for the script into scripts' folder
       $scripts = $folder->find($script);
-
       // If script not found: returns false
       if(empty($scripts))  throw new Exception('Script not found');
-
       // Returns path to script
       return $folder->pwd() . DS .$scripts[0];
     }
@@ -89,79 +90,17 @@
 
     // Initializes configuration for update
     // It takes major steps of addNewGenome.pl
-    public function initConfig($update) {
-      $config = $update['config'];
-      return $this->GenomeConfig->initConfig($config);
-      /*
-      // TODO: Execute configuration as a transaction
-      // Calculates species_2code (takes first 2 char, random char if empty)
-      $ch1 = chr(rand(97,122));
-      $ch2 = chr(rand(97,122));
-      $config['species_2code'] = strtoupper(substr($config['species_name'] . $ch1 . $ch2, 0, 2));
-      // First inserts orcae_bogas.taxid row
-      // Saves istance through Species model
-      $this->Species->save(array(
-        'NCBI_taxid' => $config['species_taxid'],
-        'internal_taxid' => null,
-        '2code' => $config['species_2code'],
-        '5code' => $config['species_5code'],
-        'organism' => $config['species_name']
-      ));
-      // Retrieves new species id
-      $config['species_id'] = $this->Species->id;
-      // Adds image to images folder (of Orcae)
-      if($config['species_image']) {
-        // Creates new file istance which references to configuration's species image
-        $speciesImage = new File($config['species_image']);
-        // Checks if species image is valid
-        if($speciesImage->exists()) {
-          // Defines orcae's images folder
-          $orcaeSpeciesImage = Configure::read('OrcaeUpload.orcaeWeb') . DS . 'app' . DS . 'webroot' . DS . 'img' . DS . $speciesImage->name();
-          // Copies species image into orcae folder
-          $speciesImage->copy($orcaeSpeciesImage, true);
-        }
+    public function initConfig(&$update) {
+      // Config variable is the reference to update's internal config attribute
+      $config = &$update['config'];
+      // Case error has been found
+      if(true !== $result = $this->GenomeConfig->initConfig($config)) {
+        return $result;
       }
-      // TODO: Inserts new group (welcome text and group description)
-      $this->Group->save(array(
-        'id' => null,
-        'name' => '',
-        'taxid' => $config['species_taxid'],
-        'description' => $config['group_description'],
-        'invitationmail' => null,
-        'upgrademail' => null,
-        'alertmail' => null,
-        'welcome' => $config['group_welcome']
-      ));
-      // Stores id of saved group
-      $config['group_id'] = $this->Group->id;
-      // TODO: Adds current user to group with admin rights over it
-      $this->UserGroup->save(array(
-        'id' => null,
-        'group_id' => $config['group_id'],
-        'user_id' => $config['user_id'],
-        'status' => null
-      ));
-      // TODO: Retrieves .sql dump (Orcae-Upload uses a default file instead)
-      // TODO: Sets correct db name into previously dumped one
-      $speciesDB = new File(WWW_ROOT . 'files' . DS . 'defaults' . DS . 'orcae_bogas.sql');
-      if($speciesDB->exists()) {}
-      // TODO: Writes new yaml SPECIES config file (<5code>_conf.yaml) into config directory
-      // In Orcae-Upload yaml file is taken from config row stored into db
-      $speciesConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml', true);
-      $speciesConfigYaml = $speciesConfigFile->prepare($config['species_config']);
-      $speciesConfigFile->write($speciesConfigYaml);
-      // TODO: Makes a backup copy of ORCAE config file
-      $orcaeConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
-      $orcaeConfigFile->copy($orcaeConfigFile->Folder->pwd() . DS . 'orcae_conf.yaml.bak', true);
-      // TODO: Writes new yaml ORCAE config file (orcae_conf.yaml)
-      $orcaeConfigYaml = Spyc::YAMLLoad($config['orcae_config']);
-      debug($orcaeConfigYaml);
-      // - If flag update is TRUE: takes 'current' section of <5code> section as default
-      // - If flag update is FALSE: takes trpee 'current' section
-      // TODO: Overwrites 'current' section
-      // TODO: Secondary configuration steps
-      // TODO: Removes temporary files
-      */
+      // Case config initialized successfully
+      else {
+        return $this->updateStep($update, 'configured');
+      }
     }
 
     // Initializes update saving data and retireving id
@@ -175,34 +114,45 @@
       if(!$result) return "Could not save new update";
       // Updates id if save executed successfully
       $update['id'] = $this->id;
+      // Deletes id from model
+      unset($this->id);
       return true;
     }
 
     // Cretaes folder with contents
-    public function initUpdateFolder($update) {
+    public function createUpdateFolder($update) {
       $config = $update['config'];
-      $upload = $update['uploads'];
+      $uploads = $update['uploads'];
       // Defines folder where file which will be updated are stored
       $updateFolder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), true);
-      // Loops every update file
+      // Deletes folder content
+      $updateFolder->delete();
+      // Loops every updated file
       foreach ($uploads as $upload) {
         // Retrieves file which will be updated
         $in = new File($this->getUploadPath($config['user_id'], $upload['stored_as']));
         // Puts input file's content in the correct file
         switch($upload['type']) {
           case 'genome':
-            $out = new File($updatePath . DS . 'genome.fasta');
+            $out = new File($updateFolder->pwd() . DS . 'genome.fasta');
             break;
           case 'annot':
-            $out = new File($updatePath . DS . 'annot.gff3', true);
+            $out = new File($updateFolder->pwd() . DS . 'annot.gff3', true);
             break;
           default:
             $out = false;
             break;
         }
         // Outputs uploaded file's content into updatable file
-        if($out !== false) $out->append($in->read());
+        if($out !== false) {
+          $out->append($in->read());
+          $out->close();
+        }
+        // Closes read/write streams
+        $in->close();
       }
+      // Saves status
+      return $this->updateStep($update, 'structured');
     }
 
     // Parses files in folder using perl script
@@ -211,42 +161,187 @@
       $userId = $update['config']['user_id'];
       $updateId = $update['id'];
       // Path to folder where files which will be parsed are stored
-      $updateFolder = $this->getUpdatePath($userId, $updateId);
+      $updatePath = $this->getUpdatePath($userId, $updateId, true);
+      $genomeFile = 'genome.fasta';
+      $annotFile = 'annot.gff3';
+      debug($updatePath);
       // Checks if parsing script exists
       $parser = $this->getPerlParser();
       // Executes parser after changing folder
-      shell_exec("cd $updateFolder; perl $parser -spe -gff $genome -fa $annot -status active -ann_id $userId");
+      // debug(shell_exec("perl -v && cd $updatePath && perl $parser -spe -gff $genomeFile -fa $annotFile -status active -ann_id $userId"));
+      $result = shell_exec("perl $parser -spe -gff $genomeFile -fa $annotFile -status active -ann_id $userId");
+      // TODO validates results
+      debug($result);
+      return true;
+    }
+
+    // Tries to load parsed folder into Orcae's database
+    public function loadUpdateFolder($update) {
+      // Initializes db istance
+      $db = null;
+      // Initializes a new database into orcae
+      $this->initOrcaeDb($update, $db);
+      // Populates the initialized db
+      $this->populateOrcaeDb($update, $db);
     }
 
     // Creates database for uploading a new species
-    public function initDatabase($update) {
+    public function initOrcaeDb(&$update, &$db) {
       $config = $update['config'];
-      // Lists databases
-      $dbs = $this->query('SHOW DATABASES;');
-      // Parses databases
-      foreach($dbs as &$db) {
-        $db = $db['SCHEMATA']['Database'];
-      }
       // Creates new database
       $db = 'orcae_' . $update['config']['species_5code'];
       $this->query('CREATE DATABASE ' . $db . ';');
-      /*
-      if(!$this->query('CREATE DATABASE ' . $db . ';')) {
-        return "Couldn't create new species' database";
-      }*/
-      // TODO: cretaes database structure
       // Takes db structure from file as a string
       $dbStructure = new File(WWW_ROOT . 'files' . DS . 'defaults' . DS . 'orcae_species.sql');
       $dbStructure = $dbStructure->read();
-      debug($dbStructure);
-      debug($db);
+      // Creates database structure
       $this->query('USE ' . $db . '; ' . $dbStructure);
-      /*if(!) {
-        return "Couldn't create database structure";
-      }*/
-      // DEBUG
-      debug($dbs);
       return true;
+    }
+
+    // Populates newly created Orcae's database
+    public function populateOrcaeDb(&$update, &$db) {}
+
+    // Deletes an update
+    // Deletes row of orcae_bogas.taxid if step is 'config'
+    // Deletes files from update folder if step is 'folder'
+    // Deletes database from Orcae if step is 'database'
+    public function undoUpdate(&$update) {
+      $result = false;
+      switch($update['step']) {
+        case 'config':
+          $result = $this->deleteUpdateConfig($update);
+          break;
+        case 'folder':
+          $result = $this->deleteUpdateFolder($update);
+          break;
+        case 'database':
+          $result = $this->deleteUpdateDb($update);
+          break;
+        default:
+          return "Could not delete this update";
+      }
+      // Case operation went wrong
+      if($result !== true) {
+        return $result;
+      }
+      // Otherwise, updates step as error
+      else {
+        return $this->updateStep($update, 'error');
+      }
+    }
+
+    // Deletes genome configuration from Orcae
+    protected function undoUpdateConfig(&$update) {
+      $config = $update['config'];
+      // Deletes row from orcae_bogas.taxid
+      $result = $this->Species->deleteAll(array(
+        'NCBI_taxid' => $config['species_taxid'],
+        'organism' => $config['species_name'],
+        '5code' => $config['species_5code']
+      ));
+      // Returns deletion reuslt
+      return $result ? true : "Could not delete genome configuration";
+    }
+
+    // Deletes update folder from orcae
+    protected function undoUpdateFolder(&$update) {
+      // Retrieves update folder
+      $folder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), false);
+      // Deletes folder recursively (this will also stop parsing process)
+      if(empty($folder->pwd()))
+        return true;
+      if(!$folder->delete())
+        return "Could not delete update folder";
+      // Calls delete config to return to original status
+      return $this->deleteUpdateConfig($update);
+    }
+
+    // Deletes newly created orcae database
+    protected function undoUpdateDb(&$update) {
+      // Deletes database if exists
+      try {
+        $this->query('DROP DATABASE IF EXISTS orcae_'. $update['config']['species_5code'] . ';');
+      } catch(Exception $e) {
+        return $e->getMessage();
+      }
+      // Executes remaining delete functions
+      return $this->deleteUpdateFolder($update);
+    }
+
+    // Updates step of current update istance
+    public function updateStep(&$update, $step) {
+      // Ensures that id has not been already set
+      unset($this->id);
+      // Saves step
+      $result = $this->save(array(
+        'id' => $update['id'],
+        'step' => $step
+      ));
+      // Updates update istance
+      if($result) {
+        $update['step'] = $step;
+        return true;
+      }
+      // In case of error while saving, returns false
+      return false;
+    }
+
+    // Retrieves last started udpate
+    public function findLast($config) {
+      $found = $this->find('first', array(
+        // Retrieves only genome updates bound to this genome config
+        'conditions' => array(
+          'GenomeUpdate.config_id' => $config['id']
+        ),
+        // Retrieves last genome update
+        'order' => 'GenomeUpdate.id DESC'
+      ));
+      return empty($found) ? null : $found['GenomeUpdate'];
+    }
+
+    // Launches an istance of update script in parallel, saving its pid and starting time
+    public function process($update) {
+      debug('OK');
+      // Defines config istance
+      $config = $update['config'];
+      // Defines update folder path
+      $updatePath = $this->getUpdatePath($config['user_id'], $update['id']);
+      // Defines output file path (overwrites the former one, if any)
+      $outFile = (new File($updatePath . DS . 'log.txt', true))->pwd();
+      // Defines error file path (overwrites the former one, if any)
+      $errFile = (new File($updatePath . DS . 'error.txt', true))->pwd();
+      // Defines command to execute another shell in background
+      $script = '(' . APP . DS . 'Console/cake GenomeUpdate -config ' . $config['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &); ';
+      $script.= 'ps --no-headers -o pid,lstart `echo "$!"`';
+      // Executes defined script without waiting for response (it is parallel)
+      $process = shell_exec('perl -v adasd && perl -v');
+      debug($process);
+      return false;
+      // Retrieves line which describes pid and start time (format: <pid> <starttime>)
+      preg_match('/^(\d+)\s(\w+)\n$/', $process, $process);
+      debug($process);
+      // Turns process info into array('pid' => <pid>, 'start' => <starttime>)
+      $process = preg_split('/\s/', $process, 1);
+      $process['pid'] = $process[0]; unset($process[0]);
+      $process['start'] = $process[1]; unset($process[1]);
+      // Updates Genome Update istance
+      $update['process_id'] = $process['pid'];
+      $update['process_start'] = $process['start'];
+      debug($update);
+      return;
+      // TODO take pid and start time of process, saves them into Orcae-Upload's database
+      $save = $this->save(array(
+        'id' => $update['id'],
+        'process_id' => $update['process_id'],
+        'process_start' => $update['process_start'],
+        'step' => $update['step']
+      ));
+      // If save failed, stops process immediately
+      if(!$save) {
+        shell_exec('kill ' . $processId);
+        return false;
+      }
     }
   }
 ?>

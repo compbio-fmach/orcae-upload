@@ -159,27 +159,43 @@ class GenomeConfig extends AppModel {
      * @return string error message otherwise
      */
     public function initConfig(&$config) {
-      // TODO: Execute configuration as a transaction
+      // Executes configuration as a transaction
+      // Retrieves reference to Orcae db
+      $orcaeDb = $this->Species->getDataSource();
+      // Starts transaction
+      $orcaeDb->begin();
       // Saves species data
-      if(!$this->saveSpecies($config)) {
-        return "Could not save the species into Orcae's database";
-      };
-      // Saves species image if is set
-      $this->saveSpeciesImage($config);
+      $alert = "Could not save the species into Orcae's database";
+      $result = $this->saveSpecies($config) ? true : $alert;
+      // Saves species image if is set (non-blocking)
+      if($result) $this->saveSpeciesImage($config);
       // Saves group information into Orcae's db
-      if(!$this->saveGroup($config)) {
-        return "Could not save Group data into Orcae's database";
-      }
+      $alert = "Could not save Group data into Orcae's database";
+      $result = ($result === true && $this->saveGroup($config)) ? true : $alert;
       // Saves species YAML configuration file
-      if(!$this->saveSpeciesYaml($config)) {
-        return "Could not save species .yaml configuration file";
-      }
+      $alert = "Could not save species .yaml configuration file";
+      $result = ($result === true && $this->saveSpeciesYaml($config)) ? true : $alert;
       // Saves Orcae's YAML configuration file
-      if(!$this->saveOrcaeYaml($config)) {
-        return "Could not update Orcae's .yaml configuration file";
+      $alert = "Could not update Orcae's .yaml configuration file";
+      // In this case, must delete species yaml configuration manually
+      if($result === true) {
+        if(!$this->saveOrcaeYaml($config)) {
+          $this->undoSpeciesYaml($config);
+          $result = $alert;
+        } else {
+          $result = true;
+        }
       }
-      // If execution reaches this point: Orcae has been succesfully updated
-      return true;
+      // Case Orcae has been succesfully updated
+      if($result === true) {
+        $orcaeDb->commit();
+        return true;
+      }
+      // Case at least one error has been found
+      else {
+        $orcaeDb->rollback();
+        return false;
+      }
     }
 
     // Saves species data into database
@@ -208,7 +224,7 @@ class GenomeConfig extends AppModel {
       }
     }
 
-    // Saves species image into orcae's folder, if it is set
+    // Saves species image into orcae's folder, if it is set (not blocking)
     protected function saveSpeciesImage(&$config) {
       $speciesImage = $this->getSpeciesImage($config);
       // Executes onfly if image exists
@@ -254,7 +270,7 @@ class GenomeConfig extends AppModel {
     protected function saveSpeciesYaml($config) {
       $speciesConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml', true);
       $speciesConfigYaml = $speciesConfigFile->prepare($config['config_species']);
-      debug($speciesConfigFile);
+      // debug($speciesConfigFile);
       // Tries to write species configuration into Orcae's folder
       if(!$speciesConfigFile->write($speciesConfigYaml)) {
         return false;
@@ -321,6 +337,68 @@ class GenomeConfig extends AppModel {
       // debug($newConfigYaml);
       // debug($orcaeConfigYaml);
       // debug($orcaeConfigYaml);
+      return true;
+    }
+
+    // Deletes config from Orcae (transaction)
+    public function undoConfig($config) {
+      // Retrieves group
+      $group = $this->Group->find('first', array(
+        'name' => $config['species_name'],
+        'taxid' => $config['species_taxid']
+      ));
+      // Checks if group exists
+      if(!empty($group)) {
+        // Retrieves group istance from query result
+        $group = $group['Group'];
+        // Deletes group
+        $this->Group->delete($group['id']);
+        // Deletes relationship istance between user and groups
+        $this->UserGroup->deleteAll(array(
+          'group_id' => $group['id'],
+          'user_id' => $config['user_id']
+        ));
+      }
+      // Deletes genome config from Orcae
+      $this->Species->deleteAll(array(
+        'NCBI_taxid' => $config['species_taxid'],
+        '5code' => $config['species_5code'],
+        'organism' => $config['species_name']
+      ));
+      // Deletes species yaml updates
+      $this->undoSpeciesYaml($config);
+      // Deletes orcae yaml updates
+      $this->undoSpeciesYaml($config);
+    }
+
+    // Deletes changes to species yaml configuration file
+    protected function undoSpeciesYaml($config) {
+      // Deletes .yaml file section
+      $speciesConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml');
+      // Returns if file has been deleted
+      return $speciesConfigYaml->pwd() ? $speciesConfigYaml->delete() : false;
+    }
+
+    // Deletes changes to orcae yaml configuration file
+    // Rewrites orcae_conf.yaml section bound to config's species_5code
+    protected function undoOrcaeYaml($config) {
+      // Defines 5code
+      $shortname = $config['species_5code'];
+      // Current configuration file
+      $currFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
+      // Checks if there is a backup file
+      $bakFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml.bak', true);
+      // Takes section of current yaml configuration file
+      $currYaml = Spyc::YAMLLoad($currFile->read());
+      // Takes section of previous yaml configuration file
+      $bakYaml = Spyc::YAMLLoad($bakFile->read());
+      // Case there was a section for this 5code in the backup file
+      if(isset($bakYaml[$shortname]))
+        $currYaml[$shortname] = $bakYaml[$shortname];
+      // Case there wasn't any section matching 5code
+      else
+        unset($currYaml[$shortname]);
+      // Exits
       return true;
     }
 }

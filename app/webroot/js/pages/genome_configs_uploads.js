@@ -58,6 +58,10 @@ function createNewUploader() {
     data.sort = 0;
   }
 
+  // Sets other default values
+  data.source = file.name;
+  data.size = file.size;
+
   // Defines section where to append new uploader
   var uploader = new GenomeFileUploader(data);
   // Adds selectes files
@@ -143,7 +147,9 @@ function GenomeFileUploader(data) {
     }
 
     // Updates progress bar
-    this.updateElementProgress();
+    var current = typeof data.file != 'undefined' ? data.file.size : 0;
+    var total = typeof data.size != 'undefined' ? data.size : 0;
+    this.updateElementProgress(current, total);
 
     // Updates source
     var $source = $element.find('[name=\'files[]\']').next('label');
@@ -163,11 +169,13 @@ function GenomeFileUploader(data) {
   this.updateElementProgress = function(current, total) {
     var $element = this.getElement();
     var progress = this.getProgress(current, total);
+    // console.log(progress);
     $element.find('.progress-bar').css('width', progress + '%');
   }
 
   // Returns upload progress
   this.getProgress = function(current, total) {
+    console.log(current, total);
     // Calculates progress percentage
     return parseInt(current / total * 100, 10);
   }
@@ -318,6 +326,8 @@ $(function(){
   // Click event on upload button
   $('#uploader').on('click', '#uploader-upload', function(){
     var $uploader = createNewUploader();
+    // Deletes file name from file upload input field
+    $('#uploader #uploader-files').next('label').text('Choose file...');
   });
   // Retrieves already uploaded files
   $.ajax({
@@ -347,6 +357,9 @@ $(function(){
       }
       // Checks if matches an 'others' name
       else if (e.type.match(/^other(\d+)$/)) {}
+
+      // Updates uploader to match actual status
+      uploader.updateElement();
     });
 
     // Appends rows
