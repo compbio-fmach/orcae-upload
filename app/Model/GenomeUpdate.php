@@ -210,13 +210,13 @@
       $result = false;
       switch($update['step']) {
         case 'config':
-          $result = $this->deleteUpdateConfig($update);
+          $result = $this->undoUpdateConfig($update);
           break;
         case 'folder':
-          $result = $this->deleteUpdateFolder($update);
+          $result = $this->undoUpdateFolder($update);
           break;
         case 'database':
-          $result = $this->deleteUpdateDb($update);
+          $result = $this->undoeUpdateDb($update);
           break;
         default:
           return "Could not delete this update";
@@ -249,9 +249,7 @@
       // Retrieves update folder
       $folder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), false);
       // Deletes folder recursively (this will also stop parsing process)
-      if(empty($folder->pwd()))
-        return true;
-      if(!$folder->delete())
+      if(!empty($folder->pwd()) && !$folder->delete())
         return "Could not delete update folder";
       // Calls delete config to return to original status
       return $this->deleteUpdateConfig($update);
@@ -266,7 +264,7 @@
         return $e->getMessage();
       }
       // Executes remaining delete functions
-      return $this->deleteUpdateFolder($update);
+      return $this->undoUpdateFolder($update);
     }
 
     // Updates step of current update istance
@@ -301,7 +299,7 @@
     }
 
     // Launches an istance of update script in parallel, saving its pid and starting time
-    public function process($update) {
+    public function startProcess($update) {
       debug('OK');
       // Defines config istance
       $config = $update['config'];
@@ -342,6 +340,19 @@
         shell_exec('kill ' . $processId);
         return false;
       }
+    }
+
+    // Stop process which is being executed, if any
+    public function stopProcess($update) {
+      $processId = $update['process_id'];
+      $processStart = $update['process_start'];
+      // Retrieves info about process with pid and start time retrieved from upadte istance
+      $results = shell_exec()
+    }
+
+    // Retrieves information about process which is being executed
+    public function getProcess($update) {
+
     }
   }
 ?>

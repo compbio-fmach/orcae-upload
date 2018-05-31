@@ -104,8 +104,12 @@ class GenomeUploadComponent extends UploadComponent {
    * @return genome_config istance or @return attribute if @param attr is set
    */
   protected function get_genome_config($attr = null) {
+    // Case genome_config not found
+    if(!$this->genome_config) {
+      return null;
+    }
     // Case no attribute has been specified
-    if(empty($attr)) {
+    if(!$attr) {
       return $this->genome_config;
     }
     // Case specific attributed has been requested
