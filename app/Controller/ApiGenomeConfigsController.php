@@ -55,6 +55,9 @@ class ApiGenomeConfigsController extends ApiController {
           $parsed['config_bogas']
         );
       }
+
+      // Unsets 'updated' and 'modified' because are handled automatically by cakephp
+      unset($parsed['created'], $parsed['updated']);
     }
 
     return $parsed;
@@ -71,7 +74,6 @@ class ApiGenomeConfigsController extends ApiController {
     // Initializes values at creation time
     $data['id'] = null;
     $data['user_id'] = $this->Auth->user('id');
-    $data['created'] = $data['updated'] = date('Y-m-d H:i:s');
 
     // Validates data (only set fields)
     $validation = $this->GenomeConfig->validate($data);
@@ -140,7 +142,7 @@ class ApiGenomeConfigsController extends ApiController {
       array(
         // Does not retrieve biggest field which contain configuration files content
         // and are useless in a genomecs overview
-        'fields' => array('id', 'user_id', 'created', 'updated', 'type', 'species_taxid', 'species_name', 'species_5code'),
+        'fields' => array('id', 'user_id', 'created', 'modified', 'type', 'species_taxid', 'species_name', 'species_5code'),
         // Retrieves only sessions owned by current user
         'conditions' => array('GenomeConfig.user_id' => $this->Auth->user('id'))
       )
@@ -162,8 +164,6 @@ class ApiGenomeConfigsController extends ApiController {
     // Initializes values correctly cor creation
     $data['id'] = $id;
     unset($data['user_id']);
-    unset($data['created']);
-    $data['updated'] = date('Y-m-d H:i:s');
 
     $validation = $this->GenomeConfig->validate($data);
     $valid = empty($validation['errors']);

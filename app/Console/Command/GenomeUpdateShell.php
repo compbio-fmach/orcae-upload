@@ -62,7 +62,7 @@ class GenomeUpdateShell extends AppShell {
     $this->update['step'] = 'folder';
     // Case no error: parallelize next function
     // DEBUG
-    // $this->next();
+    $this->next();
   }
 
   // Handles execution from 'folder' to 'parsed'
