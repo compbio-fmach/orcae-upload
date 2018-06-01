@@ -184,7 +184,7 @@ class GenomeUploadComponent extends UploadComponent {
         // Retrieves configuration from db, using id
         $this->retrieve_genome_config();
         // Validates genome configuration
-        if(empty($this->get_genome_config())) {
+        if(!$this->get_genome_config()) {
           $file->error = 'User not allowed to access this resource';
           return false;
         }
@@ -342,7 +342,7 @@ class GenomeUploadComponent extends UploadComponent {
      // Defines a response
      $response = array();
      // Deletes file wich matches 'stored_as' parameter
-     if(!empty($stored_as = $this->get_query_param('stored_as'))) {
+     if(!($stored_as = $this->get_query_param('stored_as'))) {
        // Retrieves genome config
        $this->retrieve_genome_config();
        // Deletes file from database
@@ -353,7 +353,7 @@ class GenomeUploadComponent extends UploadComponent {
        // Takes deleted rows
        $deleted = $this->GenomeUpload->prevData;
        // Deletes files from filesystem
-       if(!empty($deleted)) {
+       if($deleted) {
          foreach($deleted as $d) {
            $d = $d['GenomeUpload'];
            // Defines 'file' as the whole path to the file

@@ -16,6 +16,8 @@
       $this->GenomeConfig = ClassRegistry::init('GenomeConfig');
       // Adds reference to GenomeUpload model
       $this->GenomeUpload = ClassRegistry::init('GenomeUpload');
+      // Adds reference to Process model
+      $this->Process = ClassRegistry::init('Process');
     }
 
     public function getUploadPath($userId, $storedAs) {
@@ -298,9 +300,8 @@
       return empty($found) ? null : $found['GenomeUpdate'];
     }
 
-    // Launches an istance of update script in parallel, saving its pid and starting time
+    // Wrapper for start method of Process model
     public function startProcess($update) {
-      debug('OK');
       // Defines config istance
       $config = $update['config'];
       // Defines update folder path
@@ -309,50 +310,36 @@
       $outFile = (new File($updatePath . DS . 'log.txt', true))->pwd();
       // Defines error file path (overwrites the former one, if any)
       $errFile = (new File($updatePath . DS . 'error.txt', true))->pwd();
-      // Defines command to execute another shell in background
-      $script = '(' . APP . DS . 'Console/cake GenomeUpdate -config ' . $config['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &); ';
-      $script.= 'ps --no-headers -o pid,lstart `echo "$!"`';
-      // Executes defined script without waiting for response (it is parallel)
-      $process = shell_exec('perl -v adasd && perl -v');
-      debug($process);
-      return false;
-      // Retrieves line which describes pid and start time (format: <pid> <starttime>)
-      preg_match('/^(\d+)\s(\w+)\n$/', $process, $process);
-      debug($process);
-      // Turns process info into array('pid' => <pid>, 'start' => <starttime>)
-      $process = preg_split('/\s/', $process, 1);
-      $process['pid'] = $process[0]; unset($process[0]);
-      $process['start'] = $process[1]; unset($process[1]);
-      // Updates Genome Update istance
-      $update['process_id'] = $process['pid'];
-      $update['process_start'] = $process['start'];
-      debug($update);
-      return;
-      // TODO take pid and start time of process, saves them into Orcae-Upload's database
-      $save = $this->save(array(
-        'id' => $update['id'],
-        'process_id' => $update['process_id'],
-        'process_start' => $update['process_start'],
-        'step' => $update['step']
-      ));
-      // If save failed, stops process immediately
-      if(!$save) {
-        shell_exec('kill ' . $processId);
-        return false;
+      // Defines command to execute next shell as background process
+      $process = $this->Process->start('(' . APP . DS . 'Console/cake GenomeUpdate -config ' . $config['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &)');
+      // Case process has been started
+      if($process) {
+        // Saves process results into update
+        $update['process_id'] = $process['process_id'];
+        $update['process_start'] = $process['process_start'];
+        // Executes saving query
+        $save = $this->save(array(
+          'id' => $update['id'],
+          'process_id' => $update['process_id'],
+          'process_start' => $update['process_start'],
+          'step' => $update['step']
+        ));
+        // Case process has not been saved: don't want to have a process without refernece
+        if(!$save) {
+          // Stops process
+          $this->Process->stop($update['process_id'], $update['process_start']);
+          return false;
+        }
+        // This is the only case where success must be returned
+        return true;
       }
+      // returns false by default
+      return false;
     }
 
-    // Stop process which is being executed, if any
-    public function stopProcess($update) {
-      $processId = $update['process_id'];
-      $processStart = $update['process_start'];
-      // Retrieves info about process with pid and start time retrieved from upadte istance
-      $results = shell_exec()
-    }
-
-    // Retrieves information about process which is being executed
+    // Wrapper for get method of Process model
     public function getProcess($update) {
-
+      return $this->Process->get($update['process_id'], $update['process_start']);
     }
   }
 ?>

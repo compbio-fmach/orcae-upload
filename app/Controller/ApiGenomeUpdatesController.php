@@ -95,7 +95,7 @@
       if(true !== $result = $this->GenomeUpdate->initConfig($this->update))
         return $this->errorXxx($result, 500, true);
       // Launches parallel background processing
-      $this->GenomeUpdate->process($this->update);
+      $this->GenomeUpdate->startProcess($this->update);
       /*
       // Initializes update: creates new row
       if(true !== $result = $this->GenomeUpdate->initUpdate($this->update))
