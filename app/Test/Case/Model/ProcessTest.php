@@ -11,7 +11,7 @@ class ProcessTest extends CakeTestCase {
   }
 
   // Tests process start
-  public function startProcess() {
+  public function testStartProcess() {
     // Defines a command which retrieves system info
     $process = $this->Process->start('(lscpu)');
     // DEBUG
@@ -22,7 +22,7 @@ class ProcessTest extends CakeTestCase {
   }
 
   // Tests process stop
-  public function stopProcess() {
+  public function testStopProcess() {
     // Defines a process to be executed on a unix bash.
     // It must loop for a reasonable amount of time.
     // It has to not require much resources.
