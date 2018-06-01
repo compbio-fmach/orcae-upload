@@ -11,6 +11,7 @@ class Process extends AppModel {
    * @return false otherwise
    */
   protected function parse($shell) {
+    debug($shell);
     preg_match('/^(\d+)\s(\w+)\n$/', $shell, $output);
     debug($output);
     $output = preg_split('/\s/', $shell, 1);
@@ -28,7 +29,7 @@ class Process extends AppModel {
    */
   public function get($id, $start) {
     // Runs shell command which will retrieve id and start time
-    $output = shell_exec('ps --no-headers -o pid,lstart `echo "$!"`');
+    $output = shell_exec('ps --no-headers -o pid,lstart ' . $id);
     // Retruns process value
     return $this->parse($output);
   }
