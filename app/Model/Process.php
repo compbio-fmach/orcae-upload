@@ -1,7 +1,7 @@
 <?php
 // This model aims to handle background processes of Orcae-Upload
 class Process extends AppModel {
-  // This class is not bound to any
+  // This model does not usa a table
   public $useTable = false;
 
   /**
@@ -11,7 +11,8 @@ class Process extends AppModel {
    * @return false otherwise
    */
   protected function parse($shell) {
-    preg_match('/^(\d+)\s(\w+)\n$/', $shell, $shell);
+    preg_match('/^(\d+)\s(\w+)\n$/', $shell, $output);
+    debug($output);
     $output = preg_split('/\s/', $shell, 1);
     // Creates process from output
     $process['process_id'] = isset($output[0]) ? $output[0] : null;
