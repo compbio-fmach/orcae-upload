@@ -9,6 +9,17 @@ class ProcessTest extends CakeTestCase {
     $this->Process = ClassRegistry::init('Process');
   }
 
+  // Test process output parsing
+  public function testParseProcess() {
+    $output = '17092 Fri Jun  1 16:41:30 2018';
+    // Deletes whitespaces from process output
+    $output = trim($output);
+    // Parses process output
+    $parsed = $this->Process->parse($output);
+    // DEBUG
+    debug($parsed);
+  }
+
   // Tests process start
   public function testStartProcess() {
     // Defines a command which retrieves system info

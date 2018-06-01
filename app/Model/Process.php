@@ -10,7 +10,7 @@ class Process extends AppModel {
    * @return process in form of array(id, start) output is correct
    * @return false otherwise
    */
-  protected function parse($shell) {
+  public function parse($shell) {
     debug($shell);
     preg_match('/^(\d+)\s(\w+)\r\n$/', $shell, $output);
     debug($output);
