@@ -2,7 +2,6 @@
 // Tests process execution and stderror handling in a Unix environment
 App::uses('Process', 'Model');
 class ProcessTest extends CakeTestCase {
-  public $fixtures = array('app.process');
 
   public function setUp() {
     parent::setUp();
