@@ -12,7 +12,8 @@ class ProcessTest extends CakeTestCase {
   // Tests process start
   public function testStartProcess() {
     // Defines a command which retrieves system info
-    $process = $this->Process->start('lscpu &');
+    // Only pid is interesting, therefore stdout and stderr is redirected to null
+    $process = $this->Process->start('lscpu 2>&1 >/dev/null');
     // DEBUG
     debug($process);
     // Tests results

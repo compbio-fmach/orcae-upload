@@ -12,7 +12,7 @@ class Process extends AppModel {
    */
   protected function parse($shell) {
     debug($shell);
-    preg_match('/^(\d+)\s(\w+)\n$/', $shell, $output);
+    preg_match('/^(\d+)\s(\w+)\r\n$/', $shell, $output);
     debug($output);
     $output = preg_split('/\s/', $shell, 1);
     // Creates process from output
