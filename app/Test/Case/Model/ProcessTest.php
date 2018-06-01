@@ -12,7 +12,7 @@ class ProcessTest extends CakeTestCase {
   // Tests process start
   public function testStartProcess() {
     // Defines a command which retrieves system info
-    $process = $this->Process->start('(lscpu)');
+    $process = $this->Process->start('(lscpu &)');
     // DEBUG
     debug($process);
     // Tests results
