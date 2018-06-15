@@ -5,6 +5,7 @@
  */
 App::uses('Folder', 'Utility'); // Required for folder handling (used with species_image)
 App::uses('File', 'Utility'); //Required for file handling
+App::uses('ConnectionManager', 'Model'); // required to access database configurations
 // Imports spyc for yaml handling
 App::import('Vendor', 'Spyc', array('file' => 'spyc' . DS . 'Spyc.php'));
 class GenomeConfig extends AppModel {
@@ -128,14 +129,14 @@ class GenomeConfig extends AppModel {
       // Validates congruency only for update type
       if($data['type'] != 'update') return true;
       // Checks if species with same name, taxid and 5code exists on Orcae
-      $existsSpecies = $Species->find('count', array(
+      $exists = $Species->find('count', array(
         'conditions' => array(
           'Species.organism' => $data['species_name'],
           'Species.NCBI_taxid' => $data['species_taxid'],
           'Species.5code' => $data['species_5code']
         )
       ));
-      return $existsSpecies > 0;
+      return $exists > 0;
     }
 
     /**
@@ -145,61 +146,55 @@ class GenomeConfig extends AppModel {
      * @return species_image url
      */
     public function getSpeciesImage($data) {
-      // List all matching images
-      $images = preg_grep('/^species_image_'.$data['id'].'\./', scandir(WWW_ROOT.'img/species_images/'));
+      // Defines images folder
+      $folder = new Folder(WWW_ROOT . 'img' . DS . 'species_images' . DS, false);
+      // Checks if folder exists
+      if(!$folder->path) return false;
+      // List all matching image files
+      $images = preg_grep('/^species_image_'.$data['id'].'\./', $folder->find());
       // Returns only the first image found
-      return !empty($images) ? Router::url('/', true).'img/species_images/'.array_shift($images) : '';
+      // WARNING: uses array_shift beacuse indexes are not modified form preg_grep
+      return count($images) > 0 ? (Router::url('/', true) . 'img' . DS . 'species_images' . DS . array_shift($images)) : false;
     }
 
-    /**
-     * @method initConfig
-     * Initializes configuration for orcae's update
-     * It works like addNewGenome.pl
-     * @return true if initialization executed successfully
-     * @return string error message otherwise
-     */
-    public function initConfig(&$config) {
-      // Executes configuration as a transaction
-      // Retrieves reference to Orcae db
-      $orcaeDb = $this->Species->getDataSource();
-      // Starts transaction
-      $orcaeDb->begin();
-      // Saves species data
-      $alert = "Could not save the species into Orcae's database";
-      $result = $this->saveSpecies($config) ? true : $alert;
-      // Saves species image if is set (non-blocking)
-      if($result) $this->saveSpeciesImage($config);
-      // Saves group information into Orcae's db
-      $alert = "Could not save Group data into Orcae's database";
-      $result = ($result === true && $this->saveGroup($config)) ? true : $alert;
-      // Saves species YAML configuration file
-      $alert = "Could not save species .yaml configuration file";
-      $result = ($result === true && $this->saveSpeciesYaml($config)) ? true : $alert;
-      // Saves Orcae's YAML configuration file
-      $alert = "Could not update Orcae's .yaml configuration file";
-      // In this case, must delete species yaml configuration manually
-      if($result === true) {
-        if(!$this->saveOrcaeYaml($config)) {
-          $this->undoSpeciesYaml($config);
-          $result = $alert;
-        } else {
-          $result = true;
+    // Retrieves genome updates bound to this config istance
+    public function getGenomeUpdates($config) {
+      // List of updates to be returned
+      $updates = array();
+      // Executes query using this config attributes
+      $result = $this->find('all', array(
+        'conditions' => array(
+          'GenomeUpdate.id' => $config['id']
+        ),
+        'joins' => array(
+          'table' => 'genome_updates',
+          'alias' => 'GenomeUpdate',
+          'type' => 'inner',
+          'conditions' => array(
+            'GenomeConfig.id' => 'GenomeUpdate.config_id'
+          )
+        ),
+        'fields' => 'GenomeUpdate.*',
+        'order' => 'GenomeUpdate.id DESC'
+      ));
+      // Parses results
+      if(!empty($result)) {
+        if(isset($result['GenomeUpdate']) && !empty($result['GenomeUpdate'])) {
+          $updates = $result['GenomeUpdate'];
         }
       }
-      // Case Orcae has been succesfully updated
-      if($result === true) {
-        $orcaeDb->commit();
-        return true;
-      }
-      // Case at least one error has been found
-      else {
-        $orcaeDb->rollback();
-        return false;
-      }
+      // Returns populated array
+      return $result;
+    }
+
+    // Wrapper for getGenomeUpdates, retrieves only first genome update (the one with highest id)
+    public function popGenomeUpdates($config) {
+      $updates = $this->getGenomeUpdates($config);
+      return array_shift($updates);
     }
 
     // Saves species data into database
-    protected function saveSpecies(&$config) {
+    public function saveSpecies(&$config) {
       // Creates 2code
       $ch1 = chr(rand(97,122));
       $ch2 = chr(rand(97,122));
@@ -225,7 +220,7 @@ class GenomeConfig extends AppModel {
     }
 
     // Saves species image into orcae's folder, if it is set (not blocking)
-    protected function saveSpeciesImage(&$config) {
+    public function saveSpeciesImage(&$config) {
       $speciesImage = $this->getSpeciesImage($config);
       // Executes onfly if image exists
       if(!empty($speciesImage)) {
@@ -239,7 +234,7 @@ class GenomeConfig extends AppModel {
     }
 
     // Saves group information
-    protected function saveGroup(&$config) {
+    public function saveSpeciesGroup(&$config) {
       // Saves group into Orcae's db
       $saved = $this->Group->save(array(
         'id' => null,
@@ -267,139 +262,64 @@ class GenomeConfig extends AppModel {
     }
 
     // Saves species config yaml file
-    protected function saveSpeciesYaml($config) {
-      $speciesConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml', true);
-      $speciesConfigYaml = $speciesConfigFile->prepare($config['config_species']);
-      // debug($speciesConfigFile);
+    public function writeSpeciesYaml($config) {
+      // Creates new orcae_<5code>.yaml file
+      debug(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml');
+      $speciesFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml', true);
+      // Prepares file to be saved into orcae_conf directory
+      $speciesYaml= $speciesFile->prepare($config['config_species']);
       // Tries to write species configuration into Orcae's folder
-      if(!$speciesConfigFile->write($speciesConfigYaml)) {
-        return false;
-      }
-      return true;
+      return $speciesFile->write($speciesYaml);
     }
 
     // Saves orcae config .yaml paragraph
-    protected function saveOrcaeYaml($config) {
+    public function writeConfigYaml($config) {
+      // Defines 5code of species which will be updated
       $shortname = $config['species_5code'];
-      // Makes a backup copy of Orcae config file
-      $orcaeConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
-      $result = $orcaeConfigFile->copy($orcaeConfigFile->Folder->pwd() . DS . 'orcae_conf.yaml.bak', true);
-      if(!$result) return false;
-      // Reads Orcae's config file and parses from yaml to php array
-      $orcaeConfigYaml = Spyc::YAMLLoad($orcaeConfigFile->read());
-      // Writes new yaml ORCAE config file (orcae_conf.yaml)
-      // Parses config yaml stored into database into associative array
-      $readConfigYaml = Spyc::YAMLLoad($config['config_bogas']);
-      // Creates a new associative array which will override the saved one (sets default values)
-      $dataSource = $this->getDataSource()->config;
-      // Creates associative array with default files which represents yaml configuration file
-      $newConfigYaml = array(
-        $shortname => array(
-          'current' => array(
-            'password' => $dataSource['password'],
-      			'database' => $dataSource['database'],
-      			'port' => (int)$dataSource['port'],
-      			'current_release' => 1,
-      			'description' => '',
-      			'hostname' => $dataSource['host'],
-      			'username' => $dataSource['login'],
-      			'major_version' => 1,
-      			'minor_version' => 1,
-      			'security' => 'develop',
-      			'source' => '',
-      			'start_locus' => ''
-          )
+      // Reads and parses user created .yaml configuration
+      $yaml = Spyc::YAMLLoad($config['config_bogas']);
+      // Retrieves first element of .yaml configuration, which should be <5code>, but we don't know which
+      $yaml = array($shortname => array_shift($yaml));
+      // Leaves only 'current' section of .yaml configuration
+      $current = isset($yaml[$shortname]['current']) ? $yaml[$shortname]['current'] : array();
+      $yaml[$shortname] = array('current' => $current);
+      // Defines standard configuration to be intersected with user defined values
+      $yaml[$shortname]['current'] = array_intersect(
+        // Default values
+        array(
+          'current_release' => 1,
+          'description' => '',
+          'major_version' => 1,
+          'minor_version' => 1,
+          'security' => 'develop',
+          'source' => '',
+          'start_locus' => ''
+        ),
+        // User specified values
+        $yaml[$shortname]['current']
+      );
+      // Adds fields to .yaml configuration which cannot be modified by the user
+      $db = ConnectionManager::getDataSource('orcae_bogas')->config; // Database's data
+      $yaml[$shortname]['current'] = array_merge(
+        $yaml[$shortname]['current'],
+        array(
+          'password'  => $db['password'],
+          'database'  => $db['database'],
+          'port'      => (int)$db['port'],
+          'hostname'  => $db['host'],
+          'username'  => $db['login']
         )
       );
-      // Retrieves only body of configuration file
-      $body = &$newConfigYaml[$shortname]['current'];
-      // Checks read config file
-      if(count($readConfigYaml) == 1) {
-        // Retrieves current shortname
-        $key = array_keys($readConfigYaml)[0];
-        $current = @$readConfigYaml[$key]['current'];
-        $body['current_release'] = @$current['current_release'];
-        $body['description'] = @$current['description'];
-        $body['major_version'] = @$current['major_version'];
-        $body['minor_version'] = @$current['minor_version'];
-        $body['security'] = @$current['security'];
-        $body['source'] = @$current['source'];
-        $body['start_locus'] = @$current['start_locus'];
-      }
-      // Updates orcae config yaml associative file
-      $orcaeConfigYaml[$shortname] = $newConfigYaml[$shortname];
-      // Writes updated yaml file
-      $result = $orcaeConfigFile->write(Spyc::YAMLDump($orcaeConfigYaml, false, 0));
-      if(!$result) return false;
 
-      // Overwrites
-      // debug(array_keys($newConfigYaml)[0]);
-      // debug($newConfigYaml);
-      // debug($orcaeConfigYaml);
-      // debug($orcaeConfigYaml);
-      return true;
-    }
-
-    // Deletes config from Orcae (transaction)
-    public function undoConfig($config) {
-      // Retrieves group
-      $group = $this->Group->find('first', array(
-        'name' => $config['species_name'],
-        'taxid' => $config['species_taxid']
-      ));
-      // Checks if group exists
-      if(!empty($group)) {
-        // Retrieves group istance from query result
-        $group = $group['Group'];
-        // Deletes group
-        $this->Group->delete($group['id']);
-        // Deletes relationship istance between user and groups
-        $this->UserGroup->deleteAll(array(
-          'group_id' => $group['id'],
-          'user_id' => $config['user_id']
-        ));
-      }
-      // Deletes genome config from Orcae
-      $this->Species->deleteAll(array(
-        'NCBI_taxid' => $config['species_taxid'],
-        '5code' => $config['species_5code'],
-        'organism' => $config['species_name']
-      ));
-      // Deletes species yaml updates
-      $this->undoSpeciesYaml($config);
-      // Deletes orcae yaml updates
-      $this->undoSpeciesYaml($config);
-    }
-
-    // Deletes changes to species yaml configuration file
-    protected function undoSpeciesYaml($config) {
-      // Deletes .yaml file section
-      $speciesConfigFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . $config['species_5code'] . '_conf.yaml');
-      // Returns if file has been deleted
-      return $speciesConfigYaml->pwd() ? $speciesConfigYaml->delete() : false;
-    }
-
-    // Deletes changes to orcae yaml configuration file
-    // Rewrites orcae_conf.yaml section bound to config's species_5code
-    protected function undoOrcaeYaml($config) {
-      // Defines 5code
-      $shortname = $config['species_5code'];
-      // Current configuration file
-      $currFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
-      // Checks if there is a backup file
-      $bakFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml.bak', true);
-      // Takes section of current yaml configuration file
-      $currYaml = Spyc::YAMLLoad($currFile->read());
-      // Takes section of previous yaml configuration file
-      $bakYaml = Spyc::YAMLLoad($bakFile->read());
-      // Case there was a section for this 5code in the backup file
-      if(isset($bakYaml[$shortname]))
-        $currYaml[$shortname] = $bakYaml[$shortname];
-      // Case there wasn't any section matching 5code
-      else
-        unset($currYaml[$shortname]);
-      // Exits
-      return true;
+      // Creates a reference to old configuration file
+      $oldFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
+      debug($oldFile);
+      // Parses file into .yaml format
+      $oldYaml = Spyc::YAMLLoad($oldFile->read());
+      // Adds newly created configuration section
+      $oldYaml = array_merge($oldYaml, $yaml);
+      // Saves updated yaml file
+      return $oldFile->write(Spyc::YAMLDump($oldYaml, false, 0));
     }
 }
 ?>

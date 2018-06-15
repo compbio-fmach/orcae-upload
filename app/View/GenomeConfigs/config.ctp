@@ -48,8 +48,8 @@
 
         <div class="section-item">
           <label for="species-name">Species name</label>
-          <input type="text" class="form-control" id="species-name" name="species_name" maxlength="50" placeholder="Species' name">
-          <small class="text-muted">Insert the name of the species you want to upload genome files to</small>
+          <input type="text" class="form-control" id="species-name" name="species_name" maxlength="50" placeholder="Species name">
+          <small class="text-muted">Insert the name of the species you want to insert or update</small>
         </div>
 
         <!-- Multiple columns on one row: uses bootstrap grid -->
@@ -142,7 +142,7 @@
           </div>
         </div>
         <div class="row">
-          <div class="offset-8 col-4">
+          <div class="offset-6 col-6">
             <a class="btn btn-outline-primary btn-block" href="./uploads/" id="go-to-genome-uploads" style="display:none">Go to uploads</a>
           </div>
         </div>

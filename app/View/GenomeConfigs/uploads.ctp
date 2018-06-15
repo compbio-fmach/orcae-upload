@@ -83,7 +83,7 @@ $this->Html->script('pages/genome_configs_uploads', array('inline' => false));
           </div>
         </div>
         <div class="row">
-          <div class="col-4">
+          <div class="col-6">
             <a class="btn btn-outline-primary btn-block" id="go-to-genome-config" href="./../" >Go to genome configuration</a>
           </div>
         </div>

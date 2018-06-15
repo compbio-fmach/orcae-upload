@@ -1,7 +1,9 @@
 # Files uploaded into orcae-upload by users #
 #############################################
-/app/webroot/files/**
-/app/webroot/images/**
+/app/webroot/files/*
+/app/webroot/images/*
+!/app/webroot/files/defaults/
+!/app/webroot/files/test/
 
 # User specific & automatically generated files #
 #################################################
@@ -33,3 +35,7 @@
 Icon?
 ehthumbs.db
 Thumbs.db
+
+# SFTP CONFIG #
+###############
+deployment-config.json

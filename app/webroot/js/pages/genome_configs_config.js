@@ -51,9 +51,6 @@ GenomeConfig.serializeForm = function() {
   if($('#species-image').prop('files') && $('#species-image').prop('files')[0]) {
     this.data.species_image = $('#species-image').prop('files')[0];
   }
-
-  // DEBUG
-  // console.log('Serialized data: ', this.data);
 }
 
 // Changes form if type changes
@@ -62,13 +59,13 @@ GenomeConfig.changeType = function() {
   var type = this.data.type;
   // Handles 'update' type: hides some sctions
   if(type == 'update') {
-    console.log('update');
     $('#group, #config-files').hide();
+    // Substitutes text field with select2
   }
   // Handles 'insert' type: shows every section
   else {
-    console.log('insert');
     $('#group, #config-files').show();
+    // Substitutes select2 with text field
   }
 }
 
@@ -105,7 +102,7 @@ GenomeConfig.send = function(id, method = 'POST') {
   });
 }
 
-// Creates a new validator, inheriting Validator constructor
+// Creates a new custom validator, inheriting Validator constructor
 GenomeConfig.validator = (new function(){
   // Parent constructor
   Validator.call(this);
@@ -150,7 +147,7 @@ GenomeConfig.validator = (new function(){
   this.warnings = {
     'species_taxid': {
       regex: /^\d{1,}$/,
-      message: "Species taxonomy id should be set"
+      message: "Species NCBI taxonomy id should be set"
     },
     'species_5code': {
       regex: /^.{5}$/,
@@ -162,7 +159,7 @@ GenomeConfig.validator = (new function(){
     },
     'gorup_welcome': {
       regex: /^.{1,}$/,
-      message: "Group description should be set"
+      message: "Group welcome text should be set"
     }
   }
 }());
@@ -249,11 +246,10 @@ $(function() {
   $('[name=\'type\']').on('click', function(){
     // Changes GenomeConfig type with actually checked field
     GenomeConfig.data.type = $(this).val();
-    // DEBUG
-    // console.log('Actual Genome Configuration Type: ', GenomeConfig.data.type);
     GenomeConfig.changeType();
   });
-  // Initializes config files editors
+
+  // Initializes .yaml files editors
   $('#config-file-bogas, #config-file-species').each(function(){
     // Initializes ace editor
     var editor = ace.edit($(this).get(0));
@@ -265,32 +261,32 @@ $(function() {
         maxLines: Infinity
     });
   });
-  // Initializes validation on every validable field
+
+  // Initializes validation
   $('#species-name, #species-taxid, #species-5code, #group-welcome, #group-description').on('keyup', function(){
     // Retrieves validation result
     var valid = GenomeConfig.validator.validate($(this).attr('name'), $(this).val());
-    // DEBUG
-    // console.log(valid);
     $(this).validate(valid);
   });
+
   // Initilizes change image event: previews selected image
   $('#species-image').on('change', function(){
     // Retrieves image, if it is set
-    var img = ($(this).prop('files') && $(this).prop('files')[0]) ? $(this).prop('files')[0] : '';
+    var img = ($(this).prop('files') && $(this).prop('files')[0]) ? $(this).prop('files')[0] : false;
+    // Other image validation rules
+    console.log(img);
+    if(img) {}
     // Previews image, if set
-    if(img) {
-      $('#species-image-preview').attr('src', window.URL.createObjectURL(img));
-    }
-    else {
-      $('#species-image-preview').attr('src', '#');
-    }
+    $('#species-image-preview').attr('src', img ? window.URL.createObjectURL(img) : '#');
   });
+
   // Initilizes click event on save button
   $('#save-genome-config').on('click', function(){
     // Triggers form serialization
     GenomeConfig.serializeForm();
     // Sends data to API
     GenomeConfig.send(GenomeConfig.data.id)
+      // On success shows confirmation message
       .done(function(data){
         // Retrieves id from saved data
         GenomeConfig.data.id = data.id;
@@ -302,7 +298,7 @@ $(function() {
             '<strong>Success! </strong>' +
             'Data saved correctly!' +
           '</div>'
-        ).show();
+        );
         // Updates image preview
         $('#species-image-preview').attr('src', data.species_image);
         // Deletes previously set image
@@ -310,27 +306,39 @@ $(function() {
         // Shows 'go-to-upload' button
         $('#go-to-genome-uploads').show();
       })
+      // On failure, shows any error message
       .fail(function(data){
-        // Retrieves only firs error message
-        var errorMsg = '';
+        // Defines errors as json messgages and html messages
+        var errors = new Array();
+        var $errors = new Array();
         // If response is in json format, it means there is a validation.errors array
         if(data.responseJSON) {
           errors = data.responseJSON.validation.errors;
-          errorMsg = errors[Object.keys(errors)[0]]
         }
-        // Catch other error formats
+        // Catches generic error
         else {
-          errorMsg = data;
+          errors = [data];
         }
-        // Shows failure alert
-        $('#alert-genome-config').html(
-          '<div class=\'alert alert-danger\' role=\'alert\'>' +
-            '<strong>Error! </strong>' +
-            errorMsg +
-          '</div>'
-        ).show();
+        // For every error, creates its html element
+        for(var index in errors) {
+          // Redefines attribute from index
+          var attr = index.replace('_', ' ');
+          $errors.push(
+            '<div class=\'alert alert-danger\' role=\'alert\'>' +
+              '<strong>Error on ' + attr + ': </strong>' +
+              errors[index] +
+            '</div>'
+          );
+        }
+        // Appends all error messages to the pages
+        $('#alert-genome-config').append($errors);
+      })
+      // Always shows alert
+      .always(function() {
+        $('#alert-genome-config').show();
       });
   });
+
   // Initializes form data
   GenomeConfig.retrieve(GenomeConfig.data.id)
     .done(function(data){

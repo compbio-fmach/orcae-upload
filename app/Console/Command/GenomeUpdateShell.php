@@ -8,113 +8,110 @@
  */
 class GenomeUpdateShell extends AppShell {
   // Models required from this shell
-  public $uses = array('GenomeConfig', 'GenomeUpload', 'GenomeUpdate', 'Species');
+  public $uses = array('GenomeConfig', 'GenomeUpdate');
 
-  // This class' attributes
-  protected $config, $update;
+  protected $update;
 
   // Retrieves shell input parameters
   public function getOptionParser() {
       $parser = parent::getOptionParser();
       // Configure parser
-      $parser->addOption('config', array(
-        'short' => 'c',
-        'help' => 'The id of genome configuration relative to the genome update which will be actually updated',
+      $parser->addOption('update', array(
+        'short' => 'u',
+        'help' => 'The id of Genome Update istance which must be actually updated',
         'required' => true
       ));
+      // Returns parser as required from docs
       return $parser;
   }
 
   // Initializes config and update
-  protected function init() {
-    // Defines config
-    $this->config = array('id' => $this->param('config'));
-    // Finds config by id
-    $this->config = $this->GenomeConfig->findById($this->config['id']);
-    // Parses genome config
-    $this->config = !empty($this->config) ? $this->config['GenomeConfig'] : null;
-    // If no config has been found: returns error
-    if(empty($this->config)) $this->error('no-config', 'Could not find genome configuration bound to passed id');
-    // Else, finds last GenomeUpdate actually active
-    $this->update = $this->GenomeUpdate->findLast($this->config);
-    if(empty($this->update))  $this->error('no-update', 'Could not find any active update');
-    // DEBUG
-    // debug($this->config);
-    // debug($this->update);
-  }
-
-  // Launches another istance of this script in parallel, saving its pid and starting time
-  protected function process() {
+  public function main() {
     // Defines update istance
-    $update = $this->update;
-    // Adds configuration istance to update istance
-    $update['config'] = $config;
-    // Executes next shell script
-    $this->GenomeUpdate->process($update);
+    $this->update = array('id' => $this->param('update'));
+    $this->update = $this->GenomeUpdate->findById($this->update['id']);
+    $this->update = !empty($this->update) ? $this->update['GenomeUpdate'] : null;
+    // Checks if update has been found
+    if(!$this->update) {
+      $this->error('update-not-found', 'Could not find Genome Update instance bound to passed id');
+    }
+
+    // Retrieves Genome Config associated with given Genome Update
+    $config = array('id' => $this->update['config_id']);
+    $config = $this->GenomeConfig->findById($config['id']);
+    // Checks that configuration is valid
+    $config = !empty($config) ? $config['GenomeConfig'] : null;
+    // Returns error if Genome Config not found
+    if(!$config) {
+      $this->error('config-not-found', 'Could not find Genome Configuration instance bound to given Genome Update');
+    } else {
+      $this->update['config'] = $config;
+    }
+
+    // Updates
+    $this->initConfig();
+    $this->createUpdateFolder();
+    $this->loadUpdateFolder();
+    $this->saveConfig();
+
+    // If execution reaches this point: sets status to success
+    $this->GenomeUpdate->updateStatus($this->upload, 'success');
   }
 
-  // Handles execution form 'config' to 'folder' status
+  // Initializes Genome configuration, looking for errors
+  protected function initConfig() {
+    $update = &$this->update;
+    $config = &$update['config'];
+    // Initializes orcae_<5code>.yaml
+    $result = $this->GenomeConfig->writeSpeciesYaml($config);
+    // Checks result
+    if(!$result) {
+      $this->error('no-write-species', 'Could not write species\' .yaml configuration file');
+    }
+    // Initializes orcae_conf.yaml
+    $result = $this->GenomeConfig->writeConfigYaml($config);
+    // Checks result
+    if(!$result) {
+      $this->error('no-write-orcae', 'Could not write orcae_conf.yaml configuration file');
+    }
+  }
+
+  // Triggers creation of update folder
   protected function createUpdateFolder() {
-    if(true !== ($result = $this->GenomeUpdate->createUpdateFolder($this->update))) {
-      $this->error('error-folder', 'Could not create update folder');
-    }
-    // Updates update step (states that has terminated this step)
-    $this->update['step'] = 'folder';
-    // Case no error: parallelize next function
-    // DEBUG
-    $this->next();
+    $this->GenomeUpdate->createUpdateFolder($this->update);
   }
 
-  // Handles execution from 'folder' to 'parsed'
+  // Triggers parsing of update folder
   protected function parseUpdateFolder() {
-    if(true !== ($result = $this->GenomeUpdate->parseUpdateFolder($this->update))) {
-      $this->error('error-parsing', 'Could not parse update folder');
+    $result = $this->GenomeUpdate->parseUpdateFolder($this->$update);
+    if(!$result) {
+      $this->error('parsing', 'Could not parse update folder');
     }
-    $this->update['step'] = 'parsed';
-    $this->next();
   }
 
-  // Handles execution from 'parsed' to 'success' or 'failure'
+  // Loads parsed data into database
   protected function loadUpdateFolder() {
-    if(true !== ($result = $this->GenomeUpdate->createUpdateFolder($this->update))) {
+    $result = $this->GenomeUpdate->loadUpdateFolder($this->update);
+    // Checks result of loading operations
+    if($result !== true) {
       $this->error('error-load', 'Could not load update folder into Orcae\'s database');
     }
-    // Sets update step as 'success'
-    $this->update['step'] = 'success';
-    // Saves progress
-    $this->GenomeUpdate->save(array(
-      'id' => $update['id'],
-      'process_id' => null,
-      'process_start' => null,
-      'step' => $update['step']
-    ));
   }
 
-  // Executes the update
-  public function main() {
-    // Intializes config and update istances
-    $this->init();
-    // At this point config and update have been correctly set
-    // Otherwise script would have already been terminated with error
-    // Chooses the status of update
-    $update = $this->update;
-    switch($update['step']) {
-      // 'config' status: configuration has been done, folder creation must be done
-      case 'config':
-        $this->createUpdateFolder();
-        break;
-      // 'folder' status: update folder has been created with aggregated files, must start parsing
-      case 'folder':
-        $this->parseUpdateFolder();
-        break;
-      // 'parsed' status: folder has been parsed, must start uploading into database
-      case 'parsed':
-        $this->loadUpdateFolder();
-        break;
-      default:
-        $this->error('error-status', 'Current update\'s status is not valid');
-        break;
+  // Saves genome configuration into database
+  protected function saveConfig() {
+    if($this->GenomeUpdate->saveConfig($this->update) !== true) {
+      $this->error('no-config', 'Could not update Orcae\'s species');
     }
+  }
+
+  // Overwrites error function to set 'failure' on error
+  protected function error($title, $message = null) {
+    // Updates update status
+    if($this->update['id']) {
+      $this->GenomeUpdate->updateStatus($this->update, 'failure');
+    }
+    parent::error($title, $message);
   }
 }
 ?>

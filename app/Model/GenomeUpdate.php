@@ -3,11 +3,32 @@
   App::uses('Folder', 'Utility');
   App::uses('File', 'Utility');
   // Imports spyc for yaml handling
-  App::import('Vendor', 'Spyc', array('file' => 'spyc' . DS . 'Spyc.php'));
+  App::import('Vendor', 'Spyc', array('file' => 'spyc' . DS . 'Spyc.php'));+
+  // Imports connection manager to handle databases
+  App::import('Model', 'ConnectionManager');
   class GenomeUpdate extends AppModel {
 
     public $useDbConfig = 'orcae_upload';
     public $useTable = 'genome_updates';
+
+    // Defines validation rules
+    public $validate = array(
+      // Uses fake field init to manually trigger validation for initialization
+      'init' => array(
+        'validGenome' => array(
+          'rule' => 'validateGenome',
+          'message' => 'Could not update Orcae with this genome'
+        ),
+        'validUploads' => array(
+          'rule' => 'validateUploads',
+          'message' => 'Some files are missing: check that genome and annotation files have been correctly uploaded'
+        ),
+        'validProcessing' => array(
+          'rule' => 'validateProcessing',
+          'message' => 'Could not upadte Orcae with this genome: an update process is already being executed'
+        )
+      )
+    );
 
     // Initializes model
     public function __construct($id = false, $table = null, $ds = null) {
@@ -18,56 +39,76 @@
       $this->GenomeUpload = ClassRegistry::init('GenomeUpload');
       // Adds reference to Process model
       $this->Process = ClassRegistry::init('Process');
+      // Adds reference to Species model
+      $this->Species = ClassRegistry::init('Species');
     }
 
-    public function getUploadPath($userId, $storedAs) {
-      return $this->GenomeUpload->getUploadPath($userId, $storedAs);
+    // Retrieves last started for given config
+    public function findLast($config) {
+      $found = $this->find('first', array(
+        // Retrieves only genome updates bound to this genome config
+        'conditions' => array(
+          'GenomeUpdate.config_id' => $config['id']
+        ),
+        // Retrieves last genome update
+        'order' => 'GenomeUpdate.id DESC'
+      ));
+      // Returns query result
+      return empty($found) ? null : $found['GenomeUpdate'];
     }
 
-    // Retrieves update folder path, if any
-    public function getUpdatePath($userId, $updateId, $create = false) {
-      // debug($userId);
-      // debug($updateId);
-      $folder = new Folder(WWW_ROOT . 'files' . DS . 'genome_updates' . DS . $userId . DS . $updateId, $create);
-      return $folder->pwd();
+    // Updates status
+    public function updateStatus(&$update, $status) {
+      // Clears previous data
+      $this->clear();
+      // Saves step without calling validation
+      $result = $this->save(array(
+        'id' => $update['id'],
+        'status' => $status
+      ), false);
+      // Updates update istance
+      if($result) {
+        $update['status'] = $status;
+        return true;
+      }
+      // In case of error while saving, returns false
+      return false;
     }
 
-    // Retrieves script (used in getParser and getLoader)
-    protected function getPerlScript($script) {
-      $folder = new Folder(Configure::read('OrcaeUpload.orcaeScripts', false));
-      if(!$folder) throw new Exception('Orcae\'s perl scripts folder not found');
-      // Searches for the script into scripts' folder
-      $scripts = $folder->find($script);
-      // If script not found: returns false
-      if(empty($scripts))  throw new Exception('Script not found');
-      // Returns path to script
-      return $folder->pwd() . DS .$scripts[0];
+    // Validates genome
+    public function validateGenome($data) {
+      // Overwrites single field (id in this case) with the whole record
+      $data = $this->data['GenomeUpdate'];
+      // Retrieves config from genome
+      $config = $data['config'];
+      // Checks if there are uncompatible genomes already uploaded into orcae
+      $collisions = $this->Species->find('count', array(
+        'conditions' => array(
+          'OR' => array(
+            'Species.organism' => $config['species_name'],
+            'Species.NCBI_taxid' => $config['species_taxid'],
+            'Species.5code' => $config['species_5code']
+          )
+        )
+      ));
+      // Checks if some collision has been found
+      return ($collisions == 0);
     }
 
-    // Retrieves parser script (.annot, .gff3, ... -> .csv)
-    public function getPerlParser() {
-      $this->getPerlScript('gff2structGeneCSV.pl');
-    }
-
-    // Retrieves loader script (.csv files -> DB)
-    public function getPerlLoader() {
-      $this->getPerlScript('');
-    }
-
-    // Validates if actual uploads are completely done
-    public function validateUploads($update) {
+    // Validates uploads
+    public function validateUploads($data) {
+      $data = $this->data['GenomeUpdate'];
       // Checks if there is at least 1 genome
       $countGenomes = 0;
       // Checks if there is 1 annotation file
       $countAnnot = 0;
       // Checks every upload
-      $uploads = $update['uploads'];
-      $config = $update['config'];
+      $uploads = $data['uploads'];
+      $config = $data['config'];
+      // Loops through every file uploaded
       foreach($uploads as $upload) {
+        // Creates a reference to currently looped file
         $file = new File($this->getUploadPath($config['user_id'], $upload['stored_as']));
-        // DEBUG
-        // debug($upload);
-        // debug($file->size());
         // Checks if actual file size matches the one set into upload istance
         if($file->size() != $upload['size']) return false;
         // Updates genome files count
@@ -76,59 +117,143 @@
         }
         // Updates annotation files count
         else if($upload['type'] == 'annot') {
-          // Case annotation files count exceeds 1
-          if(++$countAnnot > 1) {
-            return false;
-          }
+          $countAnnot++;
         }
       }
       // Checks counters
-      if($countGenomes <= 0 || $countAnnot <= 0) {
-        return false;
-      }
-      // If execution reaches this point, validation is ok
-      return true;
+      return ($countGenomes >= 0 && $countAnnot == 1);
     }
 
-    // Initializes configuration for update
-    // It takes major steps of addNewGenome.pl
+    // Validates ongoing processes
+    public function validateProcessing($data) {
+      $data = $this->data['GenomeUpdate'];
+      // Defines genome configuration istance
+      $config = $data['config'];
+      // Retrieves genome uploads which would block current upload
+      $updates = $this->find('all', array(
+        // Defines joining with Genome Config table
+        'joins' => array(
+          array(
+            'table' => 'genome_configs',
+            'alias' => 'GenomeConfig',
+            'type' => 'INNER',
+            'conditions' => array(
+              // Joins with GenomeConfig table
+              'GenomeUpdate.config_id = GenomeConfig.id',
+              // Retrieves only the genome updates which did not terminate yet
+              'GenomeUpdate.status' => 'updating'
+            ),
+            // Retrieves only species related fields
+            'fields' => array('id', 'species_name', 'species_taxid', 'species_5code')
+          )
+        ),
+        'conditions' => array(
+          // Searches for conflicts
+          'OR' => array(
+            'GenomeConfig.species_name' => $config['species_name'],
+            'GenomeConfig.species_taxid' => $config['species_taxid'],
+            'GenomeConfig.species_5code' => $config['species_5code']
+          )
+        )
+      ));
+      // Blocking conflicts conuter
+      $conflicts = 0;
+      // Loops through every found update: must check that the process is still going on
+      foreach($updates as &$update) {
+        // Gets Genome update content only
+        $update = $update['GenomeUpdate'];
+        // Retrieves process, if any
+        $updating = $this->Process->get($update['process_id'], $update['process_start']);
+        // Case update process is not still executed: changes process status
+        if(!$updating) {
+          $this->updateStatus($update, 'failure');
+        } else {
+          $conflicts++;
+        }
+      }
+      // Returns false if there is at least 1 blocking conflict
+      return ($conflicts == 0);
+    }
+
+    // Returns upload path of current config
+    public function getUploadPath($userId, $storedAs) {
+      return $this->GenomeUpload->getUploadPath($userId, $storedAs);
+    }
+
+    // Retrieves update folder path, if any
+    public function getUpdatePath($userId, $updateId) {
+      return WWW_ROOT . 'files' . DS . 'genome_updates' . DS . $userId . DS . $updateId;
+    }
+
+    // Retrieves script (used in getParser and getLoader)
+    protected function getPerlScript($script) {
+      $script = new File(Configure::read('OrcaeUpload.orcaeScripts') . DS . $script, false);
+      return $script->exists() ? $script->pwd() : null;
+    }
+
+    // Retrieves parser script (.annot, .gff3, ... -> .csv)
+    public function getPerlParser() {
+      return $this->getPerlScript('gff2structGeneCSV.pl');
+    }
+
+    /**
+     * @method iniUpdate
+     * Checks if genome is updatable
+     *  - Checks if there is an already saved genome into Orcae's database
+     *  - Checks if there is an already running update for the same genome
+     *  - Checks if files uploaded are correct
+     * Deletes previous genome initialization
+     *  - Deletes created update folder
+     * Initializes new update
+     *  - Saves new update into database
+     */
+    public function initUpdate(&$update) {
+      // Initializes transaction
+      $db = $this->getDataSource();
+      $db->begin();
+      // Saves update data (save method calls validation)
+      $update['init'] = true; // Adds trigger for validation on update initialization
+      $result = $this->save($update); // Saves (with validation)
+      unset($update['init']); // Removes trigger for later uploads
+      // Checks saving result
+      if(!$result) {
+        // Rollback transaction
+        $db->rollback();
+        // Returns error message
+        return "Could not save new update";
+      } else {
+        // Commits transaction
+        $db->commit();
+        // Updates id if save executed successfully
+        $update['id'] = $this->id;
+        // Deletes id from model
+        unset($this->id);
+        return true;
+      }
+    }
+
+    /**
+     * @method initConfig
+     * Initializes update of Orcae with a new species
+     * @return true if configuration has been inserted
+     * @return string error otherwise
+     */
     public function initConfig(&$update) {
       // Config variable is the reference to update's internal config attribute
       $config = &$update['config'];
-      // Case error has been found
-      if(true !== $result = $this->GenomeConfig->initConfig($config)) {
-        return $result;
-      }
-      // Case config initialized successfully
-      else {
-        return $this->updateStep($update, 'configured');
-      }
-    }
-
-    // Initializes update saving data and retireving id
-    public function initUpdate(&$update) {
-      // Saves update data
-      $result = $this->save(array(
-        'config_id' => $update['config']['id'],
-        'status' => 'started'
-      ));
-      // Checks saving result
-      if(!$result) return "Could not save new update";
-      // Updates id if save executed successfully
-      $update['id'] = $this->id;
-      // Deletes id from model
-      unset($this->id);
-      return true;
+      // Initializes configuration
+      return $this->GenomeConfig->initConfig($config);
     }
 
     // Cretaes folder with contents
     public function createUpdateFolder($update) {
+      // Retrieves uploads and update istances
       $config = $update['config'];
       $uploads = $update['uploads'];
       // Defines folder where file which will be updated are stored
       $updateFolder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), true);
-      // Deletes folder content
-      $updateFolder->delete();
+      // Empties previous folder
+      $updateFolder->delete('.*');
       // Loops every updated file
       foreach ($uploads as $upload) {
         // Retrieves file which will be updated
@@ -153,157 +278,193 @@
         // Closes read/write streams
         $in->close();
       }
-      // Saves status
-      return $this->updateStep($update, 'structured');
     }
 
     // Parses files in folder using perl script
     public function parseUpdateFolder($update) {
       // Retrieves annotator id
-      $userId = $update['config']['user_id'];
-      $updateId = $update['id'];
+      $config = $update['config'];
       // Path to folder where files which will be parsed are stored
-      $updatePath = $this->getUpdatePath($userId, $updateId, true);
-      $genomeFile = 'genome.fasta';
-      $annotFile = 'annot.gff3';
-      debug($updatePath);
+      $updatePath = $this->getUpdatePath($config['user_id'], $update['id']);
+      $genomeFile = $updatePath . DS . 'genome.fasta';
+      $annotFile = $updatePath . DS . 'annot.gff3';
       // Checks if parsing script exists
       $parser = $this->getPerlParser();
+      // Verifies parser file
+      if(!$parser) return false;
       // Executes parser after changing folder
-      // debug(shell_exec("perl -v && cd $updatePath && perl $parser -spe -gff $genomeFile -fa $annotFile -status active -ann_id $userId"));
-      $result = shell_exec("perl $parser -spe -gff $genomeFile -fa $annotFile -status active -ann_id $userId");
-      // TODO validates results
-      debug($result);
+      $shell = "cd $updatePath && perl $parser -gff $annotFile -tfa $genomeFile -status active -annID " . $config['user_id'] . " 2>&1 > /dev/null";
+      $result = shell_exec($shell);
+      // Removes files that have been parsed
+      $annotFile = new File($updatePath . DS . $annotFile, false);
+      $annotFile->delete();
+      $genomeFile = new File($updatePath . DS . $genomeFile, false);
+      $genomeFile->delete();
+      // Retruns true: there is no way to check that script has been executed correcly from here
       return true;
     }
 
-    // Tries to load parsed folder into Orcae's database
+    // Loads parsed csv into database
     public function loadUpdateFolder($update) {
-      // Initializes db istance
+      // Previous operation result (default false)
+      $result = false;
+      // Tries to create database
+      if(!$this->createUpdateDB($update)) {
+        // Updates status
+        $this->updateStatus($update, 'failure');
+        // Returns error message
+        return "Could not create database";
+      }
+      // Defines a database connection to orcae_<5code>
       $db = null;
-      // Initializes a new database into orcae
-      $this->initOrcaeDb($update, $db);
-      // Populates the initialized db
-      $this->populateOrcaeDb($update, $db);
-    }
-
-    // Creates database for uploading a new species
-    public function initOrcaeDb(&$update, &$db) {
-      $config = $update['config'];
-      // Creates new database
-      $db = 'orcae_' . $update['config']['species_5code'];
-      $this->query('CREATE DATABASE ' . $db . ';');
-      // Takes db structure from file as a string
-      $dbStructure = new File(WWW_ROOT . 'files' . DS . 'defaults' . DS . 'orcae_species.sql');
-      $dbStructure = $dbStructure->read();
-      // Creates database structure
-      $this->query('USE ' . $db . '; ' . $dbStructure);
+      // Tries to create database structure (creates the connection also)
+      $result = $this->structureUpdateDB($update, $db);
+      $result = $result && $this->populateUpdateDB($update, $db);
+      // Case operation failed: removes database
+      if(!$result) {
+        // Updates status
+        $this->updateStatus($update, 'failure');
+        // Drops newly cretaed database
+        $this->dropUpdateDB($update);
+        // Returns error message
+        return "Could not populate database";
+      }
+      // Returns true if execution has reached this point
       return true;
     }
 
-    // Populates newly created Orcae's database
-    public function populateOrcaeDb(&$update, &$db) {}
-
-    // Deletes an update
-    // Deletes row of orcae_bogas.taxid if step is 'config'
-    // Deletes files from update folder if step is 'folder'
-    // Deletes database from Orcae if step is 'database'
-    public function undoUpdate(&$update) {
-      $result = false;
-      switch($update['step']) {
-        case 'config':
-          $result = $this->undoUpdateConfig($update);
-          break;
-        case 'folder':
-          $result = $this->undoUpdateFolder($update);
-          break;
-        case 'database':
-          $result = $this->undoeUpdateDb($update);
-          break;
-        default:
-          return "Could not delete this update";
-      }
-      // Case operation went wrong
-      if($result !== true) {
-        return $result;
-      }
-      // Otherwise, updates step as error
-      else {
-        return $this->updateStep($update, 'error');
-      }
-    }
-
-    // Deletes genome configuration from Orcae
-    protected function undoUpdateConfig(&$update) {
-      $config = $update['config'];
-      // Deletes row from orcae_bogas.taxid
-      $result = $this->Species->deleteAll(array(
-        'NCBI_taxid' => $config['species_taxid'],
-        'organism' => $config['species_name'],
-        '5code' => $config['species_5code']
-      ));
-      // Returns deletion reuslt
-      return $result ? true : "Could not delete genome configuration";
-    }
-
-    // Deletes update folder from orcae
-    protected function undoUpdateFolder(&$update) {
-      // Retrieves update folder
-      $folder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), false);
-      // Deletes folder recursively (this will also stop parsing process)
-      if(!empty($folder->pwd()) && !$folder->delete())
-        return "Could not delete update folder";
-      // Calls delete config to return to original status
-      return $this->deleteUpdateConfig($update);
-    }
-
-    // Deletes newly created orcae database
-    protected function undoUpdateDb(&$update) {
-      // Deletes database if exists
+    // Tries to remove database
+    public function dropUpdateDB($update) {
       try {
-        $this->query('DROP DATABASE IF EXISTS orcae_'. $update['config']['species_5code'] . ';');
-      } catch(Exception $e) {
+        $drop = 'DROP DATABASE IF EXISTS orcae_' . strtolower($update['config']['species_5code']) . ';';
+        $this->query($drop);
+      } catch (Exception $e) {
         return $e->getMessage();
       }
-      // Executes remaining delete functions
-      return $this->undoUpdateFolder($update);
+      return true;
     }
 
-    // Updates step of current update istance
-    public function updateStep(&$update, $step) {
-      // Ensures that id has not been already set
-      unset($this->id);
-      // Saves step
-      $result = $this->save(array(
-        'id' => $update['id'],
-        'step' => $step
-      ));
-      // Updates update istance
-      if($result) {
-        $update['step'] = $step;
-        return true;
+    // Tries to create the new database
+    public function createUpdateDB($update) {
+      $config = $update['config'];
+      try {
+        // Creates database (e.g. orcae_trpee)
+        $create = 'CREATE DATABASE IF NOT EXISTS orcae_' . strtolower($config['species_5code']) . ';';
+        $this->query($create);
+      } catch (Exception $e) {
+        // Catches exception: could not create the database
+        return false;
       }
-      // In case of error while saving, returns false
-      return false;
+      // Case database has been succesfully created
+      return true;
     }
 
-    // Retrieves last started udpate
-    public function findLast($config) {
-      $found = $this->find('first', array(
-        // Retrieves only genome updates bound to this genome config
-        'conditions' => array(
-          'GenomeUpdate.config_id' => $config['id']
-        ),
-        // Retrieves last genome update
-        'order' => 'GenomeUpdate.id DESC'
-      ));
-      return empty($found) ? null : $found['GenomeUpdate'];
+    // Imports default genome's database structure
+    public function structureUpdateDB($update, &$db) {
+      $config = $update['config'];
+      // Imports database structure from default file
+      $structure = new File(WWW_ROOT . 'files' . DS . 'defaults' . DS . 'orcae_species.sql', false);
+      // Checks if structure file exists
+      if(!$structure->exists()) return false;
+      // Reads query held by structure file
+      $structure = $structure->read();
+      // Retrieves connection params to orcae_bogas
+      $db = ConnectionManager::getDataSource('orcae_bogas');
+      // Creates new connection to orcae_<5code> database
+      $name = 'orcae_' . strtolower($config['species_5code']);
+      $db = ConnectionManager::create(
+        // Defines a name for the connection
+        $name,
+        // Configuration for new connection is the same as for orcae_bogas, except for database name
+        array_merge(
+          $db->config,
+          array(
+            'database' => $name,
+            // Sets PDO flag which allows to load data from file
+            'flags' => array(
+              PDO::MYSQL_ATTR_LOCAL_INFILE => true
+            )
+          )
+        )
+      );
+      // Executes raw query for database structure creation
+      $result = $db->rawQuery($structure);
+      // Returns true if sterror is empty
+      return $result === true;
+    }
+
+    // Stores data from .csv parsed files into database
+    public function populateUpdateDB($update, &$db) {
+      // Defines a query which imports csv files into database
+      // This query is directly taken from orcae/src/perl/programs/orcaeDB_load.tcsh
+      // $load = 'LOAD DATA LOCAL INFILE \'<csv>\' INTO TABLE <table> FIELDS TERMINATED BY \';\' ENCLOSED BY \'"\' LINES TERMINATED BY \'\\r\\n\';';
+      $load = "LOAD DATA LOCAL INFILE '<csv>' INTO TABLE `<table>` FIELDS TERMINATED BY ';' ENCLOSED BY '\"' LINES TERMINATED BY '\\n' SET id = NULL";
+        // Defines a list of files to be loaded
+      // Ordered as in orcae/src/perl/programs/orcaeDB_load.tcsh
+      $files = array(
+        'contig.csv',
+        'locked.csv',
+        'comments.csv',
+        'est.csv',
+        'function.csv',
+        'gene.csv',
+        'go_terms.csv',
+        'history.csv',
+        'protein.csv',
+        'protein_domain.csv',
+        'protein_homolog.csv',
+        'structure.csv'
+      );
+      // Loops through every file
+      foreach($files as $file) {
+        // Redefines file as File instance
+        $file = new File($this->getUpdatePath($update['config']['user_id'], $update['id']) . DS . $file);
+        // Checks if file exists
+        if($file->exists()) {
+          // Cretaes custom load query for every file
+          $loadFile = $load;
+          $loadFile = preg_replace('/<csv>/', $file->pwd(), $loadFile);
+          $loadFile = preg_replace('/<table>/', $file->name(), $loadFile);
+          debug($loadFile);
+          // Executes query which loads data
+          $result = $db->rawQuery($loadFile);
+          debug($result);
+          // Throws error only if raw query result is not true
+          if(!$result) return false;
+        }
+      }
+      // Returns true if no exception has ben fired
+      return true;
+    }
+
+    // Updates orcae_bogas: links orcae_bogas to the newly created
+    public function saveConfig(&$update) {
+      // Defines a reference to update's Genome Config istance
+      $config = &$update['config'];
+      // Starts transaction
+      $db = $this->Species->getDataSource();
+      $db->begin();
+      // Calls saveconfig method of Genome Config model
+      $result = $this->GenomeConfig->saveSpecies($config);
+      $result = $result && $this->GenomeConfig->saveSpeciesGroup($config);
+      // Species image saving does not block execution on failures
+      $this->GenomeConfig->saveSpeciesImage($config);
+      // Checks result
+      if(!$result) {
+        // Rollback
+        $db->rollback();
+        // Updates Genome Update status
+        $this->updateStatus($update, 'failure');
+        // Returns error message
+        return $result;
+      }
+      // Commits and returns true
+      $db->commit();
+      return true;
     }
 
     // Wrapper for start method of Process model
-    public function startProcess($update) {
-      // Defines config istance
-      $config = $update['config'];
+    public function startProcess(&$update) {
       // Defines update folder path
       $updatePath = $this->getUpdatePath($config['user_id'], $update['id']);
       // Defines output file path (overwrites the former one, if any)
@@ -311,21 +472,21 @@
       // Defines error file path (overwrites the former one, if any)
       $errFile = (new File($updatePath . DS . 'error.txt', true))->pwd();
       // Defines command to execute next shell as background process
-      $process = $this->Process->start('(' . APP . DS . 'Console/cake GenomeUpdate -config ' . $config['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &)');
+      $process = $this->Process->start(APP . DS . 'Console/cake GenomeUpdate -update ' . $update['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &');
       // Case process has been started
       if($process) {
-        // Saves process results into update
+        // Saves process results into update table
         $update['process_id'] = $process['process_id'];
         $update['process_start'] = $process['process_start'];
         // Executes saving query
-        $save = $this->save(array(
+        $saved = $this->save(array(
           'id' => $update['id'],
           'process_id' => $update['process_id'],
           'process_start' => $update['process_start'],
-          'step' => $update['step']
+          'status' => $update['status']
         ));
         // Case process has not been saved: don't want to have a process without refernece
-        if(!$save) {
+        if(!$saved) {
           // Stops process
           $this->Process->stop($update['process_id'], $update['process_start']);
           return false;

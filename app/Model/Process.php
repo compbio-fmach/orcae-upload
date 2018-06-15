@@ -7,19 +7,36 @@ class Process extends AppModel {
   /**
    * @method parse
    * Parses result of process information
+   * @param shell is the string which comes from the shell and needs to be parsed
    * @return process in form of array(id, start) output is correct
    * @return false otherwise
    */
   public function parse($shell) {
-    debug($shell);
-    preg_match('/^(\d+)\s(\w+)\r\n$/', $shell, $output);
-    debug($output);
-    $output = preg_split('/\s/', $shell, 1);
-    // Creates process from output
-    $process['process_id'] = isset($output[0]) ? $output[0] : null;
-    $process['process_start'] = isset($output[1]) ? $output[1] : null;
-    // Retruns process only if values are correct
-    return (!$process['process_id'] || !$process['process_start']) ? null : $process;
+    // Defines parsed object which will be returned
+    $parsed = null;
+    // Sanitizes string: Deletes unwanted (horizontal) whitespaces from process output
+    $shell = preg_replace('/\h+/', ' ', $shell);
+    // debug($shell);
+    // Retrieves string in format <pid> <start time>
+    preg_match('/(\d+)(\s)(.+)(\n)/', $shell, $parsed);
+    // DEBUG
+    // debug($parsed);
+    // Only first result is taken into account
+    $parsed = isset($parsed[0]) ? $parsed[0] : '';
+    // Splits result at the first whitespace, which divides pid from start date
+    $parsed = preg_split('/\s/', $parsed, 2);
+    // Trasforms output into an associative array
+    $parsed['process_id'] = isset($parsed[0]) ? $parsed[0] : null;
+    $parsed['process_start'] = isset($parsed[1]) ? $parsed[1] : null;
+    unset($parsed[0], $parsed[1]);
+    // Checks if process id and start time are valid
+    if(!$parsed['process_id'] || !$parsed['process_start']) {
+      return false;
+    }
+    // Parses process start into iso date format
+    $parsed['process_start'] = date('Y-m-d H:i:s', strtotime($parsed['process_start']));
+    // Retruns object representing parsed string
+    return $parsed;
   }
 
   /**
@@ -29,9 +46,19 @@ class Process extends AppModel {
    */
   public function get($id, $start) {
     // Runs shell command which will retrieve id and start time
-    $output = shell_exec('ps --no-headers -o pid,lstart ' . $id);
+    $shell = shell_exec('ps --no-headers -o pid,lstart ' . $id);
     // Retruns process value
-    return $this->parse($output);
+    $parsed = $this->parse($shell);
+    // Returns false if no valid process has been found
+    if(!$parsed) {
+      return false;
+    }
+    // Checks if parsed and passed start time matches
+    if($parsed['process_start'] != $start) {
+      return false;
+    }
+    // Returns process object only if reaches this point
+    return $parsed;
   }
 
   /**
@@ -48,9 +75,10 @@ class Process extends AppModel {
     $shell.= ' ps --no-headers -o pid,lstart $!';
     debug($shell);
     // Retrieves output
-    $output = shell_exec($shell);
+    $shell = shell_exec($shell);
+    debug($shell);
     // Returns parsed result
-    return $this->parse($output);
+    return $this->parse($shell);
   }
 
   /**
@@ -66,7 +94,7 @@ class Process extends AppModel {
     if(!$process) return false;
     // Kills process otherwise
     // Checks if there is an error
-    return !shell_exec('kill ' . $id . ' 2>&1 1> /dev/null') ? true : false;
+    return !shell_exec('kill ' . $id) ? true : false;
   }
 }
 ?>

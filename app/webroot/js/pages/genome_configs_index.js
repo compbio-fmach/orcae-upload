@@ -30,7 +30,7 @@ function createTableRow(row, index) {
     index,
     row.species_name,
     row.created,
-    row.updated,
+    row.modified,
     "<a class='text-primary' href='./" + row.id + "/'>View</a>",
     "<a class='text-danger'>Delete</a>"
   );
