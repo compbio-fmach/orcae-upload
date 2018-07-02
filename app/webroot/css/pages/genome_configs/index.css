@@ -1,0 +1,34 @@
+/**
+ * Defines a style for genome configs overview page
+ * Styles main table and title
+ */
+.main.container > .row {
+  margin-bottom: 15px !important;
+}
+
+/**
+ * Defines a style for genome configurations table
+ */
+#genome-configs .update-status,
+#genome-configs .update-status:hover {
+  text-decoration: none;
+  cursor: default;
+}
+
+/**
+ * Defines a style for loader
+ */
+.loader {
+  display: inline-block;
+  border: 3px solid #f3f3f3; /* Light grey */
+  border-top: 3px solid #007bff; /* Primary */
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  animation: spin 2s linear infinite;
+}
+/* Animation */
+@keyframes spin {
+   0% { transform: rotate(0deg); }
+   100% { transform: rotate(360deg); }
+}

@@ -8,9 +8,9 @@
  */
 class GenomeUpdateShell extends AppShell {
   // Models required from this shell
-  public $uses = array('GenomeConfig', 'GenomeUpdate');
+  public $uses = array('GenomeConfig', 'GenomeUpdate', 'GenomeUpload');
 
-  protected $update;
+  protected $update = array();
 
   // Retrieves shell input parameters
   public function getOptionParser() {
@@ -27,35 +27,74 @@ class GenomeUpdateShell extends AppShell {
 
   // Initializes config and update
   public function main() {
+    // Defines reference to update istance
+    $update = &$this->update;
+
+    // Initializes update istance
+    $this->initUpdate();
+
+    // Configures Orcae for genome update
+    $this->initConfig();
+    // Creates update folder
+    $this->createUpdateFolder();
+    // Parses files into .cvs format
+    $this->parseUpdateFolder();
+    // Parses uploaded files into .csv and loads them into orcae_<5code> database
+    $this->loadUpdateFolder();
+    // Saves configuration into orcae_bogas database
+    $this->saveConfig();
+
+    // If execution reaches this point: sets status to success
+    $this->GenomeUpdate->updateStatus($update, 'success');
+  }
+
+  // Initializes genome update istance
+  protected function initUpdate() {
+    $update = &$this->update;
+
+    // Starts transaction
+    $db = $this->GenomeUpdate->getDataSource();
+    $db->begin();
+
     // Defines update istance
-    $this->update = array('id' => $this->param('update'));
-    $this->update = $this->GenomeUpdate->findById($this->update['id']);
-    $this->update = !empty($this->update) ? $this->update['GenomeUpdate'] : null;
+    $update['id'] = $this->param('update');
+    // Redefines update istance retrieving it from database
+    $update = $this->GenomeUpdate->findById($update['id']);
+    $update = !empty($update) ? $update['GenomeUpdate'] : null;
     // Checks if update has been found
-    if(!$this->update) {
+    if(!$update) {
+      $db->rollback();
       $this->error('update-not-found', 'Could not find Genome Update instance bound to passed id');
     }
 
     // Retrieves Genome Config associated with given Genome Update
-    $config = array('id' => $this->update['config_id']);
+    $config = array('id' => $update['config_id']);
     $config = $this->GenomeConfig->findById($config['id']);
     // Checks that configuration is valid
     $config = !empty($config) ? $config['GenomeConfig'] : null;
     // Returns error if Genome Config not found
     if(!$config) {
+      $db->rollback();
       $this->error('config-not-found', 'Could not find Genome Configuration instance bound to given Genome Update');
-    } else {
-      $this->update['config'] = $config;
+    }
+    // Puts configuration istance into update istance as an attribute
+    else {
+      $update['config'] = $config;
     }
 
-    // Updates
-    $this->initConfig();
-    $this->createUpdateFolder();
-    $this->loadUpdateFolder();
-    $this->saveConfig();
+    // Retrieves uploads associated with current update
+    $update['uploads'] = $this->GenomeUpload->find('all', array(
+      'conditions' => array(
+        'GenomeUpload.config_id' => $update['config_id']
+      )
+    ));
+    // Parses uploads
+    foreach($update['uploads'] as &$upload) {
+      $upload = $upload['GenomeUpload'];
+    }
 
-    // If execution reaches this point: sets status to success
-    $this->GenomeUpdate->updateStatus($this->upload, 'success');
+    // Closes transaction
+    $db->commit();
   }
 
   // Initializes Genome configuration, looking for errors
@@ -78,14 +117,17 @@ class GenomeUpdateShell extends AppShell {
 
   // Triggers creation of update folder
   protected function createUpdateFolder() {
-    $this->GenomeUpdate->createUpdateFolder($this->update);
+    $result = $this->GenomeUpdate->createUpdateFolder($this->update);
+    if($result !== true) {
+      $this->error('no-folder', $result);
+    }
   }
 
   // Triggers parsing of update folder
   protected function parseUpdateFolder() {
-    $result = $this->GenomeUpdate->parseUpdateFolder($this->$update);
+    $result = $this->GenomeUpdate->parseUpdateFolder($this->update);
     if(!$result) {
-      $this->error('parsing', 'Could not parse update folder');
+      $this->error('parsing', 'Error while parsing files');
     }
   }
 
@@ -105,8 +147,7 @@ class GenomeUpdateShell extends AppShell {
     }
   }
 
-  // Overwrites error function to set 'failure' on error
-  protected function error($title, $message = null) {
+   public function error($title, $message = null) {
     // Updates update status
     if($this->update['id']) {
       $this->GenomeUpdate->updateStatus($this->update, 'failure');

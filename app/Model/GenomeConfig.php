@@ -122,16 +122,14 @@ class GenomeConfig extends AppModel {
      * If
      */
     public function validateSpecies($check) {
-      // Imports species model
-      $Species = ClassRegistry::init('Species');
       // Retreives other fields
       $data = $this->data['GenomeConfig'];
       // Validates congruency only for update type
       if($data['type'] != 'update') return true;
-      // Checks if species with same name, taxid and 5code exists on Orcae
-      $exists = $Species->find('count', array(
+      // Checks if species with same and 5code exists on Orcae
+      $exists = $this->Species->find('count', array(
         'conditions' => array(
-          'Species.organism' => $data['species_name'],
+          // 'Species.organism' => $data['species_name'],
           'Species.NCBI_taxid' => $data['species_taxid'],
           'Species.5code' => $data['species_5code']
         )
@@ -147,14 +145,69 @@ class GenomeConfig extends AppModel {
      */
     public function getSpeciesImage($data) {
       // Defines images folder
-      $folder = new Folder(WWW_ROOT . 'img' . DS . 'species_images' . DS, false);
+      $folder = new Folder(WWW_ROOT . 'files' . DS . 'species_images' . DS, false);
       // Checks if folder exists
       if(!$folder->path) return false;
       // List all matching image files
       $images = preg_grep('/^species_image_'.$data['id'].'\./', $folder->find());
       // Returns only the first image found
       // WARNING: uses array_shift beacuse indexes are not modified form preg_grep
-      return count($images) > 0 ? (Router::url('/', true) . 'img' . DS . 'species_images' . DS . array_shift($images)) : false;
+      return count($images) > 0 ? (Router::url('/', true) . 'files' . DS . 'species_images' . DS . array_shift($images)) : false;
+    }
+
+    /**
+     * @method updateSpeciesImage updates an image if it is set into files
+     * @param data is an associative array which holds Genome Config instance
+     * @return true if updated successfully
+     * @return error string otherwise
+     */
+    public function updateSpeciesImage($data) {
+      // Defines warning (return value)
+      $warning = null;
+
+      // Retrives images folder
+      $folder = new Folder(WWW_ROOT . 'files' . DS . 'species_images' . DS, true);
+      // Searches into folder every image bound to current genome config istance
+      $images = $folder->find("species_image_".$data['id'].".*");
+      // Loopts through folder images
+      foreach($images as $i) {
+        // Deletes all images associated with this config
+        $i = new File($folder->pwd().DS.$i);
+        $i->delete();
+      }
+
+      // Defines a reference to species image
+      $image = $data['species_image'];
+
+      // Exits if no file has been issued
+      if(!$image) return true;
+
+      // Uploads file into directory
+      if(!$warning && $image['error'] != UPLOAD_ERR_OK) {
+        $warning = "Unable to upload the given image";
+      }
+
+      // Checks image extension
+      $ext = pathinfo($image['name'], PATHINFO_EXTENSION);
+      if(!$warning && !preg_match('/^(jpg|jpeg|png)$/', $ext)) {
+        $warning = "Image extesion is not valid";
+      }
+
+      /*
+      // Checks image dimension (1 Mb)
+      if(!$warning && $image['size'] > 1000000) {
+        $warning = "Image size exceeded file size limit";
+      }
+      */
+
+      // Saves image
+      $name = "species_image_".$data['id'].".".$ext;
+      if(!$warning && !move_uploaded_file($image['tmp_name'], $folder->pwd().DS.$name)) {
+        $warning = "Could not upload image.";
+      }
+
+      // Puts results into validation array
+      return empty($warning) ? true : $warning;
     }
 
     // Retrieves genome updates bound to this config istance
@@ -167,11 +220,13 @@ class GenomeConfig extends AppModel {
           'GenomeUpdate.id' => $config['id']
         ),
         'joins' => array(
-          'table' => 'genome_updates',
-          'alias' => 'GenomeUpdate',
-          'type' => 'inner',
-          'conditions' => array(
-            'GenomeConfig.id' => 'GenomeUpdate.config_id'
+          array(
+            'table' => 'genome_updates',
+            'alias' => 'GenomeUpdate',
+            'type' => 'inner',
+            'conditions' => array(
+              'GenomeConfig.id = GenomeUpdate.config_id'
+            )
           )
         ),
         'fields' => 'GenomeUpdate.*',
@@ -188,9 +243,8 @@ class GenomeConfig extends AppModel {
     }
 
     // Wrapper for getGenomeUpdates, retrieves only first genome update (the one with highest id)
-    public function popGenomeUpdates($config) {
-      $updates = $this->getGenomeUpdates($config);
-      return array_shift($updates);
+    public function getLastGenomeUpdate($config) {
+      return array_shift($this->getGenomeUpdates($config));
     }
 
     // Saves species data into database

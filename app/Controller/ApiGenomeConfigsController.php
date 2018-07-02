@@ -179,7 +179,10 @@ class ApiGenomeConfigsController extends ApiController {
 
     // If no errors has been found, uploads image
     if($valid && isset($data['species_image'])) {
-      $this->updateSpeciesImage($data, $validation);
+      $warning = $this->GenomeConfig->updateSpeciesImage($data);
+      if($warning !== true) {
+        $validation['warnings']['species_image'] = $warning;
+      }
     }
 
     // Adds species image url to data
@@ -198,56 +201,6 @@ class ApiGenomeConfigsController extends ApiController {
     ));
 
     $this->response->statusCode(204);
-  }
-
-  /**
-   * @method updateSpeciesImage updates an image if it is set into files
-   * @param image represents the image passed to the server
-   * @return void
-   */
-  protected function updateSpeciesImage($data, &$validation) {
-    // Defines warning (return value)
-    $warning = null;
-    // Retrives images folder
-    $folder = new Folder(WWW_ROOT.DS.'img'.DS.'species_images'.DS, true);
-    // Searches into folder every image bound to current genome config istance
-    $images = $folder->find("species_image_".$data['id'].".*");
-    // Loopts through folder images
-    foreach($images as $i) {
-      $i = new File($folder->pwd().DS.$i);
-      // Deletes file
-      $i->delete();
-    }
-
-    // Exits if no file has been issued
-    if(empty($data['species_image'])) return;
-
-    // Uploads file into directory
-    if($data['species_image']['error'] != UPLOAD_ERR_OK) {
-      $warning = !empty($warning) ? $warning : "Unable to upload the new image";
-    }
-
-    // Checks image extension
-    $ext = pathinfo($data['species_image']['name'], PATHINFO_EXTENSION);
-    if(!preg_match('/^(jpg|jpeg|png)$/', $ext)) {
-      $warning = !empty($warning) ? $warning : "Image extesion is not valid";
-    }
-
-    // Checks image dimension (1 Mb)
-    if($data['species_image']['size'] > 1000000) {
-      $warning = !empty($warning) ? $warning : "Image size exceeded file size limit";
-    }
-
-    // Saves image
-    $name = "species_image_".$data['id'].".".$ext;
-    if(!move_uploaded_file($data['species_image']['tmp_name'], $folder->pwd().DS.$name)) {
-      $warning = !empty($warning) ? $warning : "Could not upload image";
-    }
-
-    // Puts results into validation array
-    if(!empty($warning)) {
-      $validation['warnings']['species_image'] = $warning;
-    }
   }
 
 }

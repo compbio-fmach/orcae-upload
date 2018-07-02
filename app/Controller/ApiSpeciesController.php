@@ -47,8 +47,12 @@ class ApiSpeciesController extends ApiController {
 
     // Searches by species name only if specified
     if(isset($get['name'])) {
+      // Searches LIKE vs normal search
+      $like = preg_match('/^like\s/', $get['name']) ? ' LIKE' : '';
+      $name = preg_replace('/like\s/', '', $get['name']);
+      $name = !$like ? $name : $name . '%';
       // Searches species names which starts with passed name
-      $select['conditions'][] = array('Species.organism' => $get['name']);
+      $select['conditions'][] = array('Species.organism' . $like => $name);
     }
     // Searches by species 5code only if specified
     if(isset($get['5code'])) {

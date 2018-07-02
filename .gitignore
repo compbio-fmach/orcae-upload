@@ -38,4 +38,4 @@ Thumbs.db
 
 # SFTP CONFIG #
 ###############
-deployment-config.json
+.remote-sync.json

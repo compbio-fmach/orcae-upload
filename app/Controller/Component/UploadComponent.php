@@ -1327,7 +1327,7 @@ class UploadComponent extends Component {
                         $content_range
                     );
                 }
-            } else {
+            } else { 
                 // param_name is a single object identifier like "file",
                 // $upload is a one-dimensional array:
                 $files[] = $this->handle_file_upload(

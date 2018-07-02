@@ -1,0 +1,48 @@
+.section {
+  margin-top: 30px;
+}
+
+/* Styles sections */
+#uploader.section {
+  margin-top: 0px;
+}
+#uploader.section > .alert {
+  margin-bottom: 0px;
+  margin-top: 15px;
+}
+#genome.section > *,
+#annot.section > *,
+#others.section > * {
+  margin-bottom: 15px;
+}
+#actions.section > .row:first-child {
+  margin-bottom: 0px !important;
+}
+#actions.section > .row:first-child > #alerts > * {
+  margin-bottom: 15px;
+}
+#actions.section > .row {
+  margin-bottom: 15px;
+}
+
+/* Styles file uploade element */
+.file-uploader {
+  margin-top: 10px;
+}
+.file-uploader .row {
+  margin-top: 5px;
+}
+
+/* Styles uploader errors */
+.custom-file-input.error ~ .custom-file-label {
+  border-color: #dc3545!important;
+  color: #dc3545!important;
+}
+.custom-file-input.error ~ .custom-file-label::after {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+}
+.custom-file-input.error ~ .error-message {
+  color: #dc3545!important
+}

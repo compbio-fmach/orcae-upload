@@ -1,6 +1,7 @@
 // Executes when DOM is ready
 $(function(){
-  // On login button click
+
+  // Event on login button click
   $('#login-button').click(function(e){
     $.ajax({
       url: '../API/login',
@@ -18,5 +19,13 @@ $(function(){
       var message = data.responseJSON ? data.responseJSON : data.responseText;
       $('#error').html('<strong>Error!</strong> ' + message + '!').fadeIn();
     });
+  });
+
+  // Event on enter key pressed
+  $(document).keypress(function(e) {
+    // If enter key has been pressed, trigger login
+    if(e.which == 13) {
+      $('#login-button').click();
+    }
   });
 });

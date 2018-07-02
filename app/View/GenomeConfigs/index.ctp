@@ -6,10 +6,12 @@
 // Defines subtitle
 $this->assign('subtitle', "Your Genome Configurations");
 // Defines custom css
-$this->Html->css('genome_configs', array('inline' => false));
+$this->Html->css('pages/genome_configs/common', array('inline' => false));
+$this->Html->css('pages/genome_configs/index', array('inline' => false));
 // Defines page scripts
-$this->Html->script('pages/navbar_top', array('inline' => false));
-$this->Html->script('pages/genome_configs_index', array('inline' => false));
+$this->Html->script('scripts/genome_updates', array('inline' => false));
+$this->Html->script('pages/elements/navbar_top', array('inline' => false));
+$this->Html->script('pages/genome_configs/index', array('inline' => false));
 ?>
 
 <!-- Top navbar -->
@@ -42,7 +44,8 @@ $this->Html->script('pages/genome_configs_index', array('inline' => false));
             <th>#</th>
             <th>Species' name</th>
             <th>Created</th>
-            <th>Last update</th>
+            <th>Modified</th>
+            <th>Orcae update result</th>
             <!-- Link to access the session represented by the current row -->
             <th>View</th>
             <!-- Asks if user wants to delete this session -->

@@ -1,0 +1,9 @@
+/**
+ * Defines a common style for genome configs pages
+ * Basically styles main container
+ */
+.main.container {
+  padding-top: 100px !important;
+  margin-top: 0px;
+  margin-bottom: 0px;
+}

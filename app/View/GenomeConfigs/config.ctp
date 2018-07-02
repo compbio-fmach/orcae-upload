@@ -1,10 +1,16 @@
 <?php
   $this->assign('subtitle', 'Edit Genome Configuration');
-  $this->Html->css('genome_configs_config', array('inline' => false));
+  $this->Html->css('pages/genome_configs/common', array('inline' => false));
+  $this->Html->css('pages/genome_configs/config', array('inline' => false));
   $this->Html->script('https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js', array('inline' => false));
-  $this->Html->script('validator', array('inline' => false));
+  $this->Html->script('scripts/validator', array('inline' => false));
+  $this->Html->script('scripts/genome_updates', array('inline' => false));
+  // Loads bootstrap 3 typeahead (handles suggestions under text input fields)
+  $this->Html->script('typeahead/bootstrap3-typeahead.js', array('inline' => false));
+  // Loads bootstrap 4 style for bootstrap 3 typeahead
+  $this->Html->css('typeahead.css', array('inline' => false));
   // Loads page's scripts
-  $this->Html->script('pages/genome_configs_config', array('inline' => false));
+  $this->Html->script('pages/genome_configs/config', array('inline' => false));
 ?>
 
 <?php
@@ -48,7 +54,7 @@
 
         <div class="section-item">
           <label for="species-name">Species name</label>
-          <input type="text" class="form-control" id="species-name" name="species_name" maxlength="50" placeholder="Species name">
+          <input id="species-name" type="text" class="form-control typeahead" name="species_name" autocomplete="off" maxlength="50" placeholder="Species name">
           <small class="text-muted">Insert the name of the species you want to insert or update</small>
         </div>
 
@@ -131,19 +137,20 @@
 
       </div>
 
-      <!-- This contains alerts of saving procedures -->
-      <div class="section" id="alert-genome-config" style="display:none"></div>
+      <!-- This contains error messages -->
+      <div class="section" id="messages"></div>
 
       <!-- Save changes button. Id does not need a section -->
       <div class="section" id="actions">
         <div class="row">
           <div class="col-12">
+            <!-- <button class="btn btn-primary btn-block " id="save-genome-config" type="button" disabled>Save unavaiable: updating Orcae</button> -->
             <button class="btn btn-primary btn-block " id="save-genome-config" type="button">Save</button>
           </div>
         </div>
         <div class="row">
           <div class="offset-6 col-6">
-            <a class="btn btn-outline-primary btn-block" href="./uploads/" id="go-to-genome-uploads" style="display:none">Go to uploads</a>
+            <a class="btn btn-outline-primary btn-block" href="./uploads/" id="go-to-uploads" style="display:none">Go to uploads</a>
           </div>
         </div>
       </div>

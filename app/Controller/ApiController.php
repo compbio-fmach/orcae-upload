@@ -22,10 +22,6 @@ class ApiController extends AppController {
     $this->error404(null, true);
   }
 
-  public function prova() {
-    $this->redirect('/API/login');
-  }
-
   /**
   * @method restify redirects ot CRUD operations, checkoing out method used for request
   * Put it into index @method to create a restful api controller

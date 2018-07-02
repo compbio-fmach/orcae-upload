@@ -31,6 +31,7 @@ function createTableRow(row, index) {
     row.species_name,
     row.created,
     row.modified,
+    "<a class='text-secondary update-status' href='#'>Searching for updates    <div class='loader'></div></a>",
     "<a class='text-primary' href='./" + row.id + "/'>View</a>",
     "<a class='text-danger'>Delete</a>"
   );
@@ -41,6 +42,23 @@ function createTableRow(row, index) {
       html: cells[i]
     }));
   }
+
+  // Creates a new instance of genome update checker
+  var updater = new GenomeUpdates({
+    genomeConfig: row
+  });
+  // Starts polling
+  updater.polling({
+    onEmpty: function() {
+      $row.find('.update-status').text('n.d.');
+    },
+    onSuccess: function(update) {
+      $row.find('.update-status').text('Success');
+    },
+    onFailure: function(update) {
+      $row.find('.update-status').text('Failed');
+    }
+  });
 
   // returns created row
   return $row;

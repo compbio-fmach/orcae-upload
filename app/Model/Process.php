@@ -73,10 +73,8 @@ class Process extends AppModel {
   public function start($shell) {
     // Adds command which retrieves pid and start time
     $shell.= ' ps --no-headers -o pid,lstart $!';
-    debug($shell);
     // Retrieves output
     $shell = shell_exec($shell);
-    debug($shell);
     // Returns parsed result
     return $this->parse($shell);
   }

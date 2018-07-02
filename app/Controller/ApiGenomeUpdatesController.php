@@ -1,5 +1,5 @@
 <?php
-  App::uses('ApiController', 'controller');
+  App::uses('ApiController', 'Controller');
   App::uses('Folder', 'Utility');
   App::uses('File', 'Utility');
   class ApiGenomeUpdatesController extends ApiController {
@@ -49,9 +49,12 @@
       $this->uploads = $uploads;
     }
 
+    /*
     // Undo genome update
     protected function undoGenomeUpdate($update) {
       return $this->GenomeUpdate->undoUpdate($update);
+    }
+    */
 
     // Defies REST routes (CRUD)
     // Create is the only function needed
@@ -60,60 +63,44 @@
       $this->findGenomeUploads();
       // Creates an update istance with uploads and updates inside
       $this->update = array(
+        'config_id' => $this->config['id'],
         'config' => $this->config,
-        'uploads' => $this->uploads
+        'uploads' => $this->uploads,
+        'status' => 'updating'
       );
 
       // Tries to create new update
       $result = $this->GenomeUpdate->initUpdate($this->update);
-      if($result !== true) return $this->errorXxx($result, 500, true);
+      // Checks initialization result
+      if($result !== true) {
+        $this->response->statusCode(500);
+        $this->set('errors', array('validation' => $result)); // Serializes errors as output
+        $this->set('_serialize', 'errors');
+        return; // Exit
+      }
 
       // Lauches background update script
-      $this->GenomeUpdate->startUpdate($this->update);
+      $this->GenomeUpdate->startProcess($this->update);
 
       // In case of success: responds with http code 204 No Body
       $this->response->statusCode(200);
-      // Serializes nothing to set this response as json view
-      $this->set('_serialize', '');
+      // Serializes update
+      unset($this->update['config']);
+      unset($this->update['uploads']);
+      $this->set('update', $this->update);
+      $this->set('_serialize', 'update');
     }
 
     // Reads last update relative to passed config id
     protected function read() {
-      // Retrieves last update associated to this genomce configuration
-      $this->update = $this->Genomeconfig->popGenomeUpdates($this->config['id']);
-      // Handles 404 resource not found
-      if(empty($this->update)) $this->update['status'] = 'empty';
-
-      // Case status equale 'updating': verifies if this update is still executed
-      if($this->update['status'] == 'updating') {
-        $updating = $this->Process->get($this->update['process_id'], $this->update['process_start']);
-        if(!$updating) {
-          // Sets value as 'failure' into db
-          $this->GenomeUpdate->updateStatus($this->update, 'failure');
-        }
-      }
-
-      // Defines status code
-      switch($this->update['status']) {
-        case 'success':
-          $statusCode = 200;
-          break;
-        case 'updating':
-          $statusCode = 200;
-          break;
-        case 'empty':
-          $statusCode = 404;
-          break;
-        case 'failure':
-        default:
-          $statusCode = 500;
-          break;
-      }
+      $config = &$this->config;
+      // Retrieves updates
+      $updates = $this->GenomeConfig->getGenomeUpdates($config);
 
       // Outputs response
-      $this->response->statusCode($statusCode);
-      $this->set('status', $this->update['status']);
-      $this->set('_serialize', 'status');
+      $this->response->statusCode(200);
+      $this->set('updates', $updates);
+      $this->set('_serialize', 'updates');
     }
 
     // Update method is not implemented

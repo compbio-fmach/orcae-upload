@@ -86,6 +86,6 @@ form.section {
 }
 
 .section#actions #save-genome-config,
-.section#actions #go-to-genome-uploads {
+.section#actions #go-to-uploads {
   margin-top: 15px;
 }

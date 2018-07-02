@@ -17,7 +17,7 @@
       'init' => array(
         'validGenome' => array(
           'rule' => 'validateGenome',
-          'message' => 'Could not update Orcae with this genome'
+          'message' => 'This genome is aready present on Orcae'
         ),
         'validUploads' => array(
           'rule' => 'validateUploads',
@@ -85,7 +85,7 @@
       $collisions = $this->Species->find('count', array(
         'conditions' => array(
           'OR' => array(
-            'Species.organism' => $config['species_name'],
+            // 'Species.organism' => $config['species_name'],
             'Species.NCBI_taxid' => $config['species_taxid'],
             'Species.5code' => $config['species_5code']
           )
@@ -150,29 +150,24 @@
         'conditions' => array(
           // Searches for conflicts
           'OR' => array(
-            'GenomeConfig.species_name' => $config['species_name'],
+            // 'GenomeConfig.species_name' => $config['species_name'],
             'GenomeConfig.species_taxid' => $config['species_taxid'],
             'GenomeConfig.species_5code' => $config['species_5code']
           )
         )
       ));
-      // Blocking conflicts conuter
-      $conflicts = 0;
+
       // Loops through every found update: must check that the process is still going on
       foreach($updates as &$update) {
         // Gets Genome update content only
         $update = $update['GenomeUpdate'];
         // Retrieves process, if any
         $updating = $this->Process->get($update['process_id'], $update['process_start']);
-        // Case update process is not still executed: changes process status
-        if(!$updating) {
-          $this->updateStatus($update, 'failure');
-        } else {
-          $conflicts++;
-        }
+        // Checks if there is at least 1 conflict
+        if($updating) return false;
       }
       // Returns false if there is at least 1 blocking conflict
-      return ($conflicts == 0);
+      return true;
     }
 
     // Returns upload path of current config
@@ -211,20 +206,25 @@
       // Initializes transaction
       $db = $this->getDataSource();
       $db->begin();
+
       // Saves update data (save method calls validation)
       $update['init'] = true; // Adds trigger for validation on update initialization
+      $update['status'] = 'updating'; // Sets initial status
       $result = $this->save($update); // Saves (with validation)
       unset($update['init']); // Removes trigger for later uploads
-      // Checks saving result
+
+      // Case update istance has not been saved
       if(!$result) {
         // Rollback transaction
         $db->rollback();
         // Returns error message
-        return "Could not save new update";
-      } else {
+        return $this->validationErrors;
+      }
+      // Case validation was successfull and update istance has been saved
+      else {
         // Commits transaction
         $db->commit();
-        // Updates id if save executed successfully
+        // Updates id save executed successfully
         $update['id'] = $this->id;
         // Deletes id from model
         unset($this->id);
@@ -252,8 +252,10 @@
       $uploads = $update['uploads'];
       // Defines folder where file which will be updated are stored
       $updateFolder = new Folder($this->getUpdatePath($config['user_id'], $update['id']), true);
-      // Empties previous folder
-      $updateFolder->delete('.*');
+      // Checks errors
+      if($updateFolder->errors()) {
+        return 'Error happened while creating new folder for update';
+      }
       // Loops every updated file
       foreach ($uploads as $upload) {
         // Retrieves file which will be updated
@@ -278,6 +280,7 @@
         // Closes read/write streams
         $in->close();
       }
+      return true;
     }
 
     // Parses files in folder using perl script
@@ -425,10 +428,10 @@
           $loadFile = $load;
           $loadFile = preg_replace('/<csv>/', $file->pwd(), $loadFile);
           $loadFile = preg_replace('/<table>/', $file->name(), $loadFile);
-          debug($loadFile);
+          // debug($loadFile);
           // Executes query which loads data
           $result = $db->rawQuery($loadFile);
-          debug($result);
+          // debug($result);
           // Throws error only if raw query result is not true
           if(!$result) return false;
         }
@@ -466,13 +469,13 @@
     // Wrapper for start method of Process model
     public function startProcess(&$update) {
       // Defines update folder path
-      $updatePath = $this->getUpdatePath($config['user_id'], $update['id']);
+      $updatePath = $this->getUpdatePath($update['config']['user_id'], $update['id']);
       // Defines output file path (overwrites the former one, if any)
       $outFile = (new File($updatePath . DS . 'log.txt', true))->pwd();
       // Defines error file path (overwrites the former one, if any)
       $errFile = (new File($updatePath . DS . 'error.txt', true))->pwd();
       // Defines command to execute next shell as background process
-      $process = $this->Process->start(APP . DS . 'Console/cake GenomeUpdate -update ' . $update['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &');
+      $process = $this->Process->start(APP . DS . 'Console/cake genome_update -u ' . $update['id'] . ' > ' . $outFile . ' 2>' . $errFile . ' &');
       // Case process has been started
       if($process) {
         // Saves process results into update table

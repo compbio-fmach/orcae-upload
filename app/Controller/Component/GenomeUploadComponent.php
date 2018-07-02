@@ -81,7 +81,7 @@ class GenomeUploadComponent extends UploadComponent {
       }
     }
 
-    // Returns unique file name or false if error
+    // Returns unique file name or empty if error
     return $unique_name;
   }
 
@@ -261,6 +261,16 @@ class GenomeUploadComponent extends UploadComponent {
     return $file;
   }
 
+  // Returns file object
+  protected function get_file_object($file_name) {
+    $file = parent::get_file_object($file_name);
+    $file = (object)array(
+      'name' => $file->name,
+      'size' => $file->size
+    );
+    return $file;
+  }
+
   /**
    * @method get handles GET requests
    * Checks authorization before sending response
@@ -269,68 +279,56 @@ class GenomeUploadComponent extends UploadComponent {
   public function get($print_response = true) {
     // Defines 'stroed as' param (uniquely identifies file upload)
     $stored_as = $this->get_query_param('stored_as');
-    // Defines sorting order of outputs
-    // $order_by = $this->get_query_param('order_by');
-    // $order_by = preg_match('/^()|(()\s(ASC|DESC))$/', $order_by)
 
     // Retrieves Genome config
     $this->retrieve_genome_config();
 
-    // Case a specific file has been requested
+    // Defines query conditions
+    $conditions = array();
+    // Returns only uploads owned by the user
+    $conditions['GenomeUpload.config_id'] = $this->get_genome_config('id');
+    // If stored_as is set, returns specific file
     if($stored_as) {
-      $file = $this->GenomeUpload->find(
-        'first',
-        // Retrieved only if authorized
-        array(
-          'conditions' => array(
-            'GenomeUpload.config_id' => $this->get_genome_config('id'),
-            'GenomeUpload.stored_as'=> $stored_as
-          )
-        )
-      );
-      // Puts file found into response
-      if(!empty($file)) {
-        $file = $file['GenomeUpload'];
-        // Puts file object into genome upload object
-        $file['file'] = $this->get_file_object($file['stored_as']);
-      }
-      // Defines response
-      $response = array(
-          $this->get_singular_param_name() => $file
-      );
+      $conditions['GenomeUpload.stored_as'] = $stored_as;
     }
-    // Case all file needs to be returned
-    else {
-        // Does not return multiple files: returns the list of currently active files
-        $files = $this->GenomeUpload->find(
-          'all',
-          array(
-            // Retrieved only if authorized
-            'conditions' => array(
-              'GenomeUpload.config_id' => $this->get_genome_config('id')
-            ),
-            // Orders by title first, then by id (max id is the actually valid file)
-            'order' => array(
-              // Groups annots and genomes
-              'GenomeUpload.type ASC',
-              // Sorts from min (upper) to max (lower) positions
-              'GenomeUpload.id ASC'
-            )
-          )
+
+    // Executes query
+    $results = $this->GenomeUpload->find('all', array(
+      'conditions' => $conditions
+    ));
+
+    // Parses results
+    foreach($results as &$result) {
+      $result = $result['GenomeUpload'];
+      $result['file'] = $this->get_file_object($result['stored_as']);
+    }
+
+    // Creates response
+    $response = $results;
+    // Case single result is required
+    if($stored_as) {
+      // retrieves only first element, if any
+      $response = array_shift($response);
+      // Creates response to be printed
+      if($print_response) {
+        $response = array(
+            $this->get_singular_param_name() => $response
         );
-        // Parses files results
-        foreach($files as &$file) {
-          $file = $file['GenomeUpload'];
-          // Retrieves file object
-          $file['file'] = $this->get_file_object($file['stored_as']);
-        }
+      }
+    }
+    // Case multiple results
+    else {
+      if($print_response) {
         // Puts files into response
         $response = array(
             // e.g. options['param_name'] == $_GET['files']
-            $this->options['param_name'] => $files
+            $this->options['param_name'] => $response
         );
       }
-      return $this->generate_response($response, $print_response);
+    }
+
+    // returns and prints reponse, if required
+    return $this->generate_response($response, $print_response);
   }
 
   /**
@@ -338,37 +336,47 @@ class GenomeUploadComponent extends UploadComponent {
    * Does not use parent funztion: overwrites it
    * @return response
    */
-   public function delete($print_response = true) {
+  public function delete($print_response = true) {
      // Defines a response
-     $response = array();
+     $response = null;
+     // Retrieves parameter from query
+     $stored_as = $this->get_query_param('stored_as');
+
      // Deletes file wich matches 'stored_as' parameter
-     if(!($stored_as = $this->get_query_param('stored_as'))) {
+     if($stored_as) {
        // Retrieves genome config
        $this->retrieve_genome_config();
        // Deletes file from database
-       $this->GenomeUpload->deleteAll(array(
+       $result = $this->GenomeUpload->deleteAll(array(
          'GenomeUpload.stored_as' => $stored_as,
          'GenomeUpload.config_id' => $this->get_genome_config('id')
        ));
-       // Takes deleted rows
-       $deleted = $this->GenomeUpload->prevData;
+       // Retrieves deleted row
+       $deleted = array_shift($this->GenomeUpload->prevData);
        // Deletes files from filesystem
        if($deleted) {
-         foreach($deleted as $d) {
-           $d = $d['GenomeUpload'];
-           // Defines 'file' as the whole path to the file
-           $d['file'] = $this->get_upload_path($d['stored_as']);
-           $success = is_file($d['file']) && $d['file'][0] !== '.' && unlink($d['file']);
-           // Adds deleted flag
-           $d['deleted'] = $success;
-           // Deletes file path from returned file
-           unset($d['file']);
-           // Adds upload object to response
-           $response[$this->options['param_name']][] = $d;
-         }
+         $upload = $deleted['GenomeUpload'];
+         // Defines path to the file
+         $file = $this->get_upload_path($upload['stored_as']);
+         // Attempts to remove file
+         $success = is_file($file) && $file[0] !== '.' && unlink($file);
+         // Adds deleted flag
+         $upload['deleted'] = $success;
+         // Deletes file path from returned file
+         unset($file);
+         // Adds upload object to response
+         $response = $upload;
        }
      }
 
+     // If ther result will be pronted out: creates proper structure
+     if($print_response) {
+       $response = array(
+           $this->get_singular_param_name() => $response
+       );
+     }
+
+     // Generates response
      return $this->generate_response($response, $print_response);
    }
 

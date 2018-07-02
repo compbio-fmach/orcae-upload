@@ -7,8 +7,8 @@
 // Sets page title
 $this->assign('subtitle', "Login");
 // Sets stylesheet for this page only
-$this->Html->css('login', array('inline' => false));
-$this->Html->script('pages/login', array('inline' => false));
+$this->Html->css('pages/login/index', array('inline' => false));
+$this->Html->script('pages/login/index', array('inline' => false));
 ?>
 
 <!-- This page content is just a login form -->

@@ -1,4 +1,4 @@
-<?php $this->Html->script('pages/navbar_top', array('inline' => false)); ?>
+<?php $this->Html->script('pages/elements/navbar_top', array('inline' => false)); ?>
 <nav class="navbar fixed-top navbar-expand-lg navbar-light navbar-top">
 
   <!-- title -->
