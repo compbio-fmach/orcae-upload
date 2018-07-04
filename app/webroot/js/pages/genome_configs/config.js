@@ -24,11 +24,11 @@ GenomeConfig.loadForm = function() {
   $('#species-image-preview').attr('src', data.species_image);
   $('#config-file-bogas, #config-file-species').each(function(){
     // Retrieves editor from jQuery element
-    var editor = ace.edit($(this).get(0));
+    var editor = ace.edit(this);
     // Defines value to set
     var value = ($(this).attr('id') == 'config-file-bogas') ? data.config_bogas : data.config_species;
-    // Sets editor value
-    editor.setValue(value ? value : '', -1);
+    // Sets editor value if not empty
+    if(value) editor.setValue(value, -1);
   });
 }
 
@@ -224,9 +224,9 @@ GenomeConfig.updateValidator = function() {
 
   // Validates compliance between species taxid and 5code
   function validateCompliance(value) {
-    var match = GenomeConfig.speciesAvaiable.find(function(species) {
-      var valid5code = species['5code'] == getSpecies5code();
-      var validTaxid = species['NCBI_taxid'] == getSpeciesTaxid();
+    var match = species.find(function(s) {
+      var valid5code = s['5code'] == getSpecies5code();
+      var validTaxid = s['NCBI_taxid'] == getSpeciesTaxid();
       return valid5code && validTaxid;
     });
     return match != undefined;
@@ -267,6 +267,33 @@ GenomeConfig.updateValidator = function() {
 // Creates a validator for 'insert' action
 GenomeConfig.insertValidator = function() {
   GenomeConfig.commonValidator.call(this);
+
+  // reference to Orcae's avaiable species
+  var species = GenomeConfig.speciesAvaiable;
+
+  // Adds validation on taxid
+  this.errors.species_taxid.push({
+    rule: function(value) {
+      // Checks if taxid is valid
+      var match = species.find(function(s) {
+        return s['NCBI_taxid'] == value;
+      });
+      return !match;
+    },
+    message: 'Given taxid is already used'
+  });
+
+  // Adds validation on
+  this.errors.species_5code.push({
+    rule: function(value) {
+      // Checks if 5code matches any other species 5code
+      var match = species.find(function(s) {
+        return s['5code'] == value;
+      });
+      return !match;
+    },
+    message: 'Given shortname is already used'
+  });
 };
 
 // Retrieves species avaiable on Orcae currently
@@ -283,41 +310,6 @@ GenomeConfig.speciesAvaiable = (function() {
 
 // Handles genome updates bound to current configuration id
 GenomeConfig.checkUpdates = function() {
-
-}
-
-/**
- * @function retrieveSpecies
- * Makes an ajax request to /API/species/
- * @return ajax object
- */
-function retrieveSpecies(params = {}) {
-  return $.ajax({
-    url: '../../API/species/',
-    method: 'GET',
-    data: params,
-    dataType: 'json'
-  });
-}
-
-/**
- * @function retrieveDefaults
- * Makes an ajax request to /API/defaults/
- * @return ajax object
- */
-function retrieveDefaults(params = {}) {
-  return $.ajax({
-    url: '../../API/defaults/',
-    method: 'GET',
-    data: params
-  });
-}
-
-/**
- * @function handleUpdates
- * Hackandles updates status
- */
-function handleUpdates() {
   // Mantains a reference to DOM element
   var $this = $('#save-genome-config');
 
@@ -344,17 +336,52 @@ function handleUpdates() {
       // Disables button
       .prop('disabled', true)
       // Updates button text
-      .text('Save unavaiable: genome already saved into Orcae');
+      .text('Orcae has already been updated with the current genome');
+  }
+
+  var isUpdating = function() {
+    $this
+      .prop('disabled', true)
+      .text('Orcae is being updated with the current genome');
   }
 
   // Starts polling
   updates.polling({
     // Genome not already inserted into Orcae
-    onEmpty: isUpdatable,
+    onUpdateEmpty: isUpdatable,
     // Genome aLready inserted into Orcae
-    onSuccess: notUpdatable,
+    onUpdateSuccess: notUpdatable,
     // Genome not already inserted into Orcae
-    onFailure: isUpdatable
+    onUpdateFailure: isUpdatable,
+    // Currently under update
+    onUpdateUpdating: isUpdating
+  });
+}
+
+/**
+ * @function retrieveSpecies
+ * Makes an ajax request to /API/species/
+ * @return ajax object
+ */
+function retrieveSpecies(params = {}) {
+  return $.ajax({
+    url: '../../API/species/',
+    method: 'GET',
+    data: params,
+    dataType: 'json'
+  });
+}
+
+/**
+ * @function retrieveDefaults
+ * Makes an ajax request to /API/defaults/
+ * @return ajax object
+ */
+function retrieveDefaults(params = {}) {
+  return $.ajax({
+    url: '../../API/defaults/',
+    method: 'GET',
+    data: params
   });
 }
 
@@ -429,7 +456,7 @@ $.fn.autocomplete = function(destroy = false) {
       // Defines data for autocomplete
       source: function(q, cb) {
         // Retrieves species previously saved
-        var species = $this.data('species');
+        var species = GenomeConfig.speciesAvaiable;
         // Returns species on callback
         cb(species);
       },
@@ -480,7 +507,7 @@ $(function() {
   // Calls defaults API asynchronously
   $('#config-file-bogas, #config-file-species').each(function(){
     // Initializes ace editor
-    var editor = ace.edit($(this).get(0));
+    var editor = ace.edit(this);
     // Sets editors in .yaml mode
     editor.session.setMode('ace/mode/yaml');
     // Sets editor properties
@@ -490,20 +517,19 @@ $(function() {
     });
 
     // Calls asynchronously defaults API
-    // Defines a reference to current object
-    var $this = $(this);
     // Defines which .yaml file is currently being configured
-    var file = $this.attr('id') == 'config-file-bogas' ? 'config_bogas' : 'config_species';
+    var file = $(this).attr('id') == 'config-file-bogas' ? 'config_bogas' : 'config_species';
     // Makes AJAX call
     retrieveDefaults({file: file})
-      .done(function(data){
-        var editor = ace.edit($this.get(0));
-        if(!editor.getValue()) {
-          editor.setValue(data, -1);
-        }
-      });
+    // Case default file has been found
+    .done(function(data){
+      if(!editor.getValue()) {
+        editor.setValue(data, -1);
+      }
+    });
   });
 
+  /*
   // Initializes species avaiable on orcae
   $('#species-name').each(function(){
     // Defines a reference to current element
@@ -515,6 +541,7 @@ $(function() {
         $this.data('species', species);
       });
   });
+  */
 
   // Initializes validation
   $('#species-name, #group-welcome, #group-description').on('keyup', function(){
@@ -525,12 +552,15 @@ $(function() {
 
   // Initilizes validation on species taxid and 5code
   $('#species-taxid, #species-5code').on('keyup', function(e) {
+    // Defines which field has triggered keyup event
+    var self = this;
+
     // Validates both fields
     $('#species-taxid, #species-5code').each(function(){
-      console.log($(this));
-      var validateField = GenomeConfig.validator.validate;
+      // Double validation only on 'update'
+      if(GenomeConfig.type != 'update' && self != this) return;
       // Validates field
-      var result = validateField($(this).attr('name'), $(this).val());
+      var result = GenomeConfig.validator.validate($(this).attr('name'), $(this).val());
       // Outputs results on dom elements
       $(this).validate(result);
     });
@@ -541,7 +571,7 @@ $(function() {
     // Retrieves image, if it is set
     var img = ($(this).prop('files') && $(this).prop('files')[0]) ? $(this).prop('files')[0] : false;
     // Other image validation rules
-    console.log(img);
+    // console.log(img);
     // Previews image, if set
     $('#species-image-preview').attr('src', img ? window.URL.createObjectURL(img) : '#');
   });
@@ -577,7 +607,11 @@ $(function() {
             .addClass('alert-primary')
         );
 
-        // HANDLES SPECIES IMAGE
+        // Handles species shortname (5code)
+        GenomeConfig.data.species_5code = data.species_5code;
+        $('#species-5code').val(GenomeConfig.data.species_5code).change();
+
+        // Handles species image
         // Updates image preview
         $('#species-image-preview').attr('src', data.species_image);
         // Deletes previously set image
@@ -597,7 +631,7 @@ $(function() {
         }
 
         // Shows 'go-to-upload' button
-        $('#go-to-genome-uploads').show();
+        $('#go-to-uploads').show();
       })
       // On failure, shows any error message
       .fail(function(data) {
@@ -630,44 +664,7 @@ $(function() {
 
   // Initializes save button status (checks if there are ongoing updates)
   $('#save-genome-config').each(function() {
-    // Mantains a reference to DOM element
-    var $this = $(this);
-
-    // Creates new genome updates handler
-    var updates = new GenomeUpdates({
-      // Time between requests
-      pollingInterval: 3000,
-      // Genome configuratiuon object
-      genomeConfig: Object.assign({}, GenomeConfig.data)
-    });
-
-    // Handles genome can be modified
-    var isUpdatable = function() {
-      $this
-        // Enables button
-        .prop('disabled', false)
-        // Updates button text
-        .text('Save');
-    }
-
-    // Handles genome cofniguration cannot be modified
-    var notUpdatable = function() {
-      $this
-        // Disables button
-        .prop('disabled', true)
-        // Updates button text
-        .text('Save unavaiable: genome already saved into Orcae');
-    }
-
-    // Starts polling
-    updates.polling({
-      // Genome not already inserted into Orcae
-      onEmpty: isUpdatable,
-      // Genome aLready inserted into Orcae
-      onSuccess: notUpdatable,
-      // Genome not already inserted into Orcae
-      onFailure: isUpdatable
-    });
+    GenomeConfig.checkUpdates();
   });
 
   // Initializes form data
@@ -677,6 +674,9 @@ $(function() {
       GenomeConfig.data = Object.assign(GenomeConfig.data, data);
       // Shows go-to-upload button
       $('#go-to-uploads').show();
+    })
+    .fail(function(data) {
+      GenomeConfig.data.id = undefined;
     })
     .always(function(data){
       // Loads retrieved data, if any

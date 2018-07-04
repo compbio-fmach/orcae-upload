@@ -188,6 +188,17 @@ class GenomeUploadComponent extends UploadComponent {
           $file->error = 'User not allowed to access this resource';
           return false;
         }
+
+        // Checks if current genome configuration is being updated
+        $lastUpdate = $this->GenomeConfig->getLastGenomeUpdate($this->get_genome_config());
+        switch($lastUpdate['status']) {
+          case 'updating':
+            $file->error = 'It is not possible to upload a new file while updating a genome into Orcae';
+            return false;
+          case 'success':
+            $file->error = 'Current genome has already been updated into Orcae';
+            return false;
+        }
       }
 
       // Checks if if file name is valid (present and into boudaries)
@@ -227,7 +238,12 @@ class GenomeUploadComponent extends UploadComponent {
 
     // Executes query only if no error has been found during file upload
     if (empty($file->error)) {
+      // Case first chunk
       if(!$append) {
+        // Retrieves data source
+        $db = $this->GenomeUpload->getDataSource();
+        // Begins transaction
+        $db->begin();
         // Deletes rows file associated with files with same type and sort
         $this->GenomeUpload->deleteAll(array(
           'GenomeUpload.type' => $this->get_post_param('type'),
@@ -254,6 +270,8 @@ class GenomeUploadComponent extends UploadComponent {
           'type' => $this->get_post_param('type'), // Title (name which will be displayed)
           'sort' => $this->get_post_param('sort')
         ), false);
+        // Closes transaction
+        $db->commit();
       }
     }
 
@@ -349,7 +367,7 @@ class GenomeUploadComponent extends UploadComponent {
        // Deletes file from database
        $result = $this->GenomeUpload->deleteAll(array(
          'GenomeUpload.stored_as' => $stored_as,
-         'GenomeUpload.config_id' => $this->get_genome_config('id')
+         'GenomeUpload.config_id' => $this->get_genome_config('id'),
        ));
        // Retrieves deleted row
        $deleted = array_shift($this->GenomeUpload->prevData);

@@ -477,25 +477,35 @@ function checkUpdateStatus(after = {}) {
       $btn
         .text('Update Orcae')
         .prop('disabled', false);
+      // Removes class from conatiner
+      $('.main.container').removeClass('updating');
     },
     // Case last update attempt failed
-    onUpdateFailed: function() {
+    onUpdateFailure: function(update) {
       // Calls onUpdateEmpty because has the same behavior
       this.onUpdateEmpty();
     },
     // Case last update was successfull
-    onUpdateSuccess: function() {
+    onUpdateSuccess: function(update) {
       // Sets button status to disabled
       $btn
         .text('Orcae has already been updated with the current genome')
         .prop('disabled', true);
+      // Adds class to conatiner
+      $('.main.container')
+        .removeClass('updating')
+        .addClass('updated');
     },
     // Case still updating
-    onUpdateUpdating: function() {
+    onUpdateUpdating: function(update) {
       // Sets button status to disabled, while updating
       $btn
         .text('Orcae is being updated with the current genome')
         .prop('disabled', true);
+      // Adds class to container
+      $('.main.container')
+        .addClass('updating');
+      return true;
     },
     // Case AJAX request failed: enables button
     onFailure: function() {
@@ -553,10 +563,6 @@ $(function(){
       })
       // Handles update started
       .done(function(data){
-        // Sets update button status
-        $('#update-button')
-          .attr('disabled', true)
-          .text('Updating...');
         // Starts polling
         checkUpdateStatus();
       })
@@ -588,7 +594,7 @@ $(function(){
           });
         }
 
-        // Appends errors to conteiner
+        // Appends errors to container
         $('#alerts')
           .empty()
           .append($errors);

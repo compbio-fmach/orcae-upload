@@ -15,9 +15,13 @@
     public $validate = array(
       // Uses fake field init to manually trigger validation for initialization
       'init' => array(
-        'validGenome' => array(
-          'rule' => 'validateGenome',
-          'message' => 'This genome is aready present on Orcae'
+        'validGenomeInsert' => array(
+          'rule' => array('validateGenome', 'insert'),
+          'message' => 'This genome is already present on Orcae'
+        ),
+        'validGenomeUpdate' => array(
+          'rule' => array('validateGenome', 'update'),
+          'message' => 'This genome does not match the ones already present on Orcae'
         ),
         'validUploads' => array(
           'rule' => 'validateUploads',
@@ -76,23 +80,48 @@
     }
 
     // Validates genome
-    public function validateGenome($data) {
+    public function validateGenome($data, $action) {
       // Overwrites single field (id in this case) with the whole record
       $data = $this->data['GenomeUpdate'];
       // Retrieves config from genome
       $config = $data['config'];
-      // Checks if there are uncompatible genomes already uploaded into orcae
-      $collisions = $this->Species->find('count', array(
-        'conditions' => array(
+
+      // Checks if validation is required
+      if($action != $config['type']) return true;
+
+      // Defines conditions for 'update' action
+      if($action == 'update') {
+        $conditions = array(
+          'Species.NCBI_taxid' => $config['species_taxid'],
+          'Species.5code' => $config['species_5code']
+        );
+      }
+      // Defines conditions for 'insert' action
+      else {
+        $conditions = array(
           'OR' => array(
             // 'Species.organism' => $config['species_name'],
             'Species.NCBI_taxid' => $config['species_taxid'],
             'Species.5code' => $config['species_5code']
           )
-        )
+        );
+      }
+
+      // Checks if there are uncompatible genomes already uploaded into orcae
+      $collisions = $this->Species->find('count', array(
+        'conditions' => $conditions
       ));
-      // Checks if some collision has been found
-      return ($collisions == 0);
+
+      // Case action is 'update'
+      if($action == 'update') {
+        // There must be a matching species instance
+        return $collisions == 1;
+      }
+      // Case action is insert
+      else {
+        // Must be unique
+        return $collisions == 0;
+      }
     }
 
     // Validates uploads
@@ -308,7 +337,7 @@
     }
 
     // Loads parsed csv into database
-    public function loadUpdateFolder($update) {
+    public function loadUpdateFolder(&$update) {
       // Previous operation result (default false)
       $result = false;
       // Tries to create database
@@ -348,12 +377,29 @@
     }
 
     // Tries to create the new database
-    public function createUpdateDB($update) {
+    public function createUpdateDB(&$update) {
       $config = $update['config'];
       try {
+        // Defines new database name
+        $dbName = $dbUniqueName = 'orcae_' . strtolower($config['species_5code']);
+        // Retrieves databases currently on Orcae
+        $dbNames = $this->query('SHOW DATABASES;');
+        // Parses databases
+        foreach($dbNames as &$db) {
+          $db = $db['SCHEMATA']['Database'];
+        }
+        // debug($dbs);
+        // Creates unique database name
+        $i = 1;
+        while(preg_grep('/' . $dbUniqueName . '/', $dbNames)) {
+          $dbUniqueName = $dbName . '_v' . $i++;
+        }
+        // debug($dbUniqueName);
         // Creates database (e.g. orcae_trpee)
-        $create = 'CREATE DATABASE IF NOT EXISTS orcae_' . strtolower($config['species_5code']) . ';';
+        $create = 'CREATE DATABASE IF NOT EXISTS ' . $dbUniqueName . ';';
         $this->query($create);
+        // Sets database name into update instance
+        $update['config']['database'] = $dbUniqueName;
       } catch (Exception $e) {
         // Catches exception: could not create the database
         return false;
@@ -374,7 +420,8 @@
       // Retrieves connection params to orcae_bogas
       $db = ConnectionManager::getDataSource('orcae_bogas');
       // Creates new connection to orcae_<5code> database
-      $name = 'orcae_' . strtolower($config['species_5code']);
+      // $name = 'orcae_' . strtolower($config['species_5code']);
+      $name = $config['database'];
       $db = ConnectionManager::create(
         // Defines a name for the connection
         $name,

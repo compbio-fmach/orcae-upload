@@ -37,6 +37,9 @@ function Validator() {
       // defines reference to validator
       var self = this;
 
+      // console.log(self.errors);
+      // console.log(self.warnings);
+
       // Defines an object containing errors and warnings for current field
       var rules = {
         'errors': self.errors[field] ? self.errors[field] : new Array(),
@@ -50,11 +53,12 @@ function Validator() {
         if(!Array.isArray(rules[type])) {
           rules[type] = new Array(rules[type]);
         }
-        // loops through every validatiopn rule
+        // loops through every validation rule
         for(var index in rules[type]) {
           // Retrieve rule attributes
           var rule = rules[type][index]['rule'];
           var message = rules[type][index]['message'];
+
           // Checks how to validate
           // Checks if rule is a function
           if(rule instanceof Function) {
@@ -64,12 +68,14 @@ function Validator() {
               return self.result(type, message);
             }
           }
+
           // Checks if rule is a regular expression
           else if(rule instanceof RegExp) {
             if(!rule.test(value)) {
               return self.result(type, message);
             }
           }
+
         }
       }
 

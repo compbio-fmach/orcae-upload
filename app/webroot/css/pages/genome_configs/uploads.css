@@ -2,6 +2,19 @@
   margin-top: 30px;
 }
 
+/* Style status */
+.main.container.updating #uploader.section .btn,
+.main.container.updated #uploader.section .btn,
+.main.container.updating .file-uploader .btn,
+.main.container.updated .file-uploader .btn {
+  pointer-events: none;
+  opacity: .65;
+}
+.main.container.updating .file-uploader .custom-file,
+.main.container.updated .file-uploader .custom-file {
+  pointer-events: none;
+}
+
 /* Styles sections */
 #uploader.section {
   margin-top: 0px;

@@ -38,6 +38,9 @@ class ApiGenomeConfigsController extends ApiController {
         $parsed[$attribute] = $request->data($attribute);
       }
 
+      // Sets speices 5code uppercase first letter
+      $parsed['species_5code'] = ucfirst(strtolower($parsed['species_5code']));
+
       // Retrieves species image from files
       if(isset($_FILES['species_image'])) {
         $parsed['species_image'] = $_FILES['species_image'];
@@ -72,8 +75,9 @@ class ApiGenomeConfigsController extends ApiController {
     // Parses data given in request body into Genome Config object
     $data = $this->parseRequest();
     // Initializes values at creation time
-    $data['id'] = null;
-    $data['user_id'] = $this->Auth->user('id');
+    $data['id'] = null; // Sets id empty
+    $data['user_id'] = $this->Auth->user('id'); // Sets current user
+    $data['last_update'] = null; // Sets validation of last update
 
     // Validates data (only set fields)
     $validation = $this->GenomeConfig->validate($data);
@@ -90,7 +94,10 @@ class ApiGenomeConfigsController extends ApiController {
 
     // If no errors has been found, uploads image
     if($valid && isset($data['species_image'])) {
-      $this->updateSpeciesImage($data, $validation);
+      $warning = $this->GenomeConfig->updateSpeciesImage($data);
+      if($warning !== true) {
+        $validation['warnings']['species_image'] = $warning;
+      }
     }
 
     // Adds species image url to data
@@ -161,9 +168,10 @@ class ApiGenomeConfigsController extends ApiController {
   protected function update($id) {
     // Parses data given in request body into Genome Config object
     $data = $this->parseRequest();
-    // Initializes values correctly cor creation
-    $data['id'] = $id;
-    unset($data['user_id']);
+    // Initializes values
+    $data['id'] = $id; // Sets id
+    $data['last_update'] = $this->GenomeConfig->getLastGenomeUpdate($data); // Sets last update
+    unset($data['user_id']); // Removes user id from data (will not be updated)
 
     $validation = $this->GenomeConfig->validate($data);
     $valid = empty($validation['errors']);
@@ -195,12 +203,25 @@ class ApiGenomeConfigsController extends ApiController {
   }
 
   protected function delete($id) {
-    $this->GenomeConfig->deleteAll(array(
+    // Deletes rows from database
+    $result = $this->GenomeConfig->deleteAll(array(
       'GenomeConfig.id' => $id,
       'GenomeConfig.user_id' => $this->Auth->user('id')
     ));
 
-    $this->response->statusCode(204);
+    // Case error
+    if($result !== true) {
+      $this->response->statusCode(500);
+      $this->set('result', $result);
+    }
+    // Case deleted successfully
+    else {
+      $this->response->statusCode(204);
+      $this->set('result', '');
+    }
+
+    // Returns data view
+    $this->set('_serialize', 'result');
   }
 
 }

@@ -26,6 +26,75 @@ class GenomeConfig extends AppModel {
       $this->UserGroup = ClassRegistry::init('UserGroup');
     }
 
+    // Handles delete
+    public function deleteAll($conditions, $cascade = true , $callbacks = false) {
+      // Starts transaction
+      $db = $this->getDataSource();
+      $db->begin();
+
+      // Needs GenomeConfig.id and GenomeConfig.user_id
+      // Defines genome configuration instance using given conditions
+      $config = array(
+        'id' => isset($conditions['GenomeConfig.id']) ? $conditions['GenomeConfig.id'] : null,
+        'user_id' => isset($conditions['GenomeConfig.user_id']) ? $conditions['GenomeConfig.user_id'] : null
+      );
+
+      // Retrieves genome updates
+      $config['updates'] = $this->getGenomeUpdates($config);
+      // Retrieves last update
+      $last = array_shift($config['updates']);
+      // Checks last update status
+      if($last && $last['status'] == 'updating') {
+        return 'Unable to delete a genome configuration while updating it into Orcae';
+      }
+
+      // Retrieves uploads
+      $config['uploads'] = $this->getGenomeUploads($config['id']);
+
+      // Executes deletion
+      $result = parent::deleteAll($conditions, $cascade, $callbacks);
+
+      // Case result is false
+      if(!$result) {
+        $db->rollback(); // Rollback transaction
+        return false; // Exits with error status
+      }
+
+      // Loads Genome Upload model
+      $GenomeUpload = ClassRegistry::init('GenomeUpload');
+      // Loops every file
+      foreach($config['uploads'] as &$upload) {
+        // Deletes uploads' folder
+        if($file = new File($GenomeUpload->getUploadPath($config['user_id'], $upload['stored_as'], false))) {
+          // checks if iles exists
+          if($file->exists()) {
+            // Deletes file
+            $file->delete();
+          }
+        }
+      }
+
+      // Loads Genome Update model
+      $GenomeUpdate = ClassRegistry::init('GenomeUpdate');
+      // Deletes updates' files
+      foreach($config['updates'] as &$update) {
+        // Delete the whole folder which contains updates
+        $folder = $genomeUpdate->getUpdatePath($config['user_id'], $update['id']);
+        // Creates folder
+        $folder = new Folder($folder, false);
+        // Checks if folder exists
+        if($folder->path) {
+          // deletes folder
+          $folder->delete();
+        }
+      }
+
+      // Closes transaction
+      $db->commit();
+      // Returns result
+      return true;
+    }
+
     // Empty array of validation rules, will be filled with errors and warnings later
     public $validate = array();
 
@@ -53,15 +122,29 @@ class GenomeConfig extends AppModel {
         'allowEmpty' => true,
         'message' => "Invalid species taxonomy id"
       ),
-      'species_shortname' => array(
-        'rule' => '/^[a-zA-Z0-9]{0,5}$/',
-        'allowEmpty' => true,
-        'message' => 'Invalid species shortname'
+      'species_5code' => array(
+        array(
+          'rule' => '/^[a-zA-Z0-9]{0,5}$/',
+          'allowEmpty' => true,
+          'message' => 'Invalid species shortname'
+        )
       ),
       'group_description' => array(
         'rule' => '/^(|.{0,255})$/',
         'allowEmpty' => true,
         'message' => 'Group description exceeds maximum length of 255 chars'
+      ),
+      // Checks last update status
+      'last_update' => array(
+        'success' => array(
+          'required' => true, // 'last_update' field is required
+          'rule' => array('validateLastUpdate', 'success'),
+          'message' => 'Save not allowed: currently updating Orcae with this genome configuration'
+        ),
+        'updating' => array(
+          'rule' => array('validateLastUpdate', 'updating'),
+          'message' => 'Save not allowed: Orcae has already been updated with this genome configuration'
+        )
       )
     );
 
@@ -72,7 +155,7 @@ class GenomeConfig extends AppModel {
         'allowEmpty' => false,
         'message' => 'Species taxonomy id should be set and contain numbers only'
       ),
-      'species_shortname' => array(
+      'species_5code' => array(
         'rule' => '/^[a-zA-Z0-9]{5}$/',
         'allowEmpty' => false,
         'message' => 'Species shortname should be set as a string of 5 chars'
@@ -118,8 +201,7 @@ class GenomeConfig extends AppModel {
 
     /**
      * @method validateSpecies
-     * This method validates if there is a species which matches name, taxid and 5code of validated data
-     * If
+     * This method validates if there is a species which matches taxid and 5code of validated data
      */
     public function validateSpecies($check) {
       // Retreives other fields
@@ -138,12 +220,47 @@ class GenomeConfig extends AppModel {
     }
 
     /**
+     * @method validateLastUpdate
+     * Checks if last update allows to edit current genome configuration
+     * @param status which makes validation end successfully
+     */
+    public function validateLastUpdate($check, $status) {
+      // Retreives field
+      $last = $this->data['GenomeConfig']['last_update'];
+
+      // Checks last update status
+      switch($last ? $last['status'] : false) {
+        // Case last update status equals given status
+        case $status:
+          return false;
+        // Last update is absent
+        case false:
+        // By default returns false
+        default:
+          return true;
+      }
+    }
+
+    /**
+     * @method normalizeSpecies5code
+     * Normalizes species_5code attribute
+     * @return true
+     */
+    public function normalizeSpecies5code($check) {
+      $shortname = $this->data['GenomeConfig']['species_5code'];
+      $this->data['GenomeConfig']['species_5code'] = ucfirst(strtolower($shortname));
+      // Returns true every time
+      return true;
+    }
+
+    /**
      * @method getSpeciesImage
      * Return species images of Genome Configuration given as param, if any
      * @param data is an associative array representing Genome Configuration
+     * @param link specifies if a local or web url must be returned
      * @return species_image url
      */
-    public function getSpeciesImage($data) {
+    public function getSpeciesImage($data, $link = 'web') {
       // Defines images folder
       $folder = new Folder(WWW_ROOT . 'files' . DS . 'species_images' . DS, false);
       // Checks if folder exists
@@ -152,7 +269,22 @@ class GenomeConfig extends AppModel {
       $images = preg_grep('/^species_image_'.$data['id'].'\./', $folder->find());
       // Returns only the first image found
       // WARNING: uses array_shift beacuse indexes are not modified form preg_grep
-      return count($images) > 0 ? (Router::url('/', true) . 'files' . DS . 'species_images' . DS . array_shift($images)) : false;
+      $image = array_shift($images);
+
+      // Defines image path
+      if($image) {
+        // Case a web url is erquired
+        if($link == 'web') {
+          $image = Router::url('/', true) . 'files' . DS . 'species_images' . DS . $image;
+        }
+        // Case an internal link is required
+        else {
+          $image = $folder->pwd() . DS . $image;
+        }
+      }
+
+      // Returns retrieved image url or path
+      return $image;
     }
 
     /**
@@ -210,14 +342,46 @@ class GenomeConfig extends AppModel {
       return empty($warning) ? true : $warning;
     }
 
+    // Retrieves genome uploads bound to this config instance
+    public function getGenomeUploads($config) {
+      // Query using join
+      $uploads = $this->find('all', array(
+        'conditions' => array(
+          'GenomeConfig.id' => $config['id']
+        ),
+        'joins' => array(
+          array(
+            'table' => 'genome_uploads',
+            'alias' => 'GenomeUpload',
+            'type' => 'inner',
+            'conditions' => array(
+              'GenomeConfig.id = GenomeUpload.config_id'
+            )
+          )
+        ),
+        'fields' => 'GenomeUpload.*',
+        'order' => 'GenomeUpload.id DESC'
+      ));
+
+      // Parses results
+      foreach($uploads as &$upload) {
+        $upload = $upload['GenomeUpload'];
+      }
+
+      // returns uploads
+      return $uploads;
+    }
+
     // Retrieves genome updates bound to this config istance
     public function getGenomeUpdates($config) {
+      // Loads Process model
+      $Process = ClassRegistry::init('Process');
       // List of updates to be returned
       $updates = array();
       // Executes query using this config attributes
-      $result = $this->find('all', array(
+      $results = $this->find('all', array(
         'conditions' => array(
-          'GenomeUpdate.id' => $config['id']
+          'GenomeConfig.id' => $config['id']
         ),
         'joins' => array(
           array(
@@ -232,19 +396,30 @@ class GenomeConfig extends AppModel {
         'fields' => 'GenomeUpdate.*',
         'order' => 'GenomeUpdate.id DESC'
       ));
+
       // Parses results
-      if(!empty($result)) {
-        if(isset($result['GenomeUpdate']) && !empty($result['GenomeUpdate'])) {
-          $updates = $result['GenomeUpdate'];
+      foreach($results as &$result) {
+        $result = $result['GenomeUpdate'];
+        // Checks if genome update is actually updating
+        if($result['status'] == 'updating') {
+          // Retrieves process
+          $process = $Process->get($result['process_id'], $result['process_start']);
+          // Checks if process has been retrieved
+          if(!$process) {
+            // Sets process status into update instance
+            $result['status'] = 'failure';
+          }
         }
       }
+
       // Returns populated array
-      return $result;
+      return $results;
     }
 
     // Wrapper for getGenomeUpdates, retrieves only first genome update (the one with highest id)
     public function getLastGenomeUpdate($config) {
-      return array_shift($this->getGenomeUpdates($config));
+      $updates = $this->getGenomeUpdates($config);
+      return array_shift($updates);
     }
 
     // Saves species data into database
@@ -275,13 +450,14 @@ class GenomeConfig extends AppModel {
 
     // Saves species image into orcae's folder, if it is set (not blocking)
     public function saveSpeciesImage(&$config) {
-      $speciesImage = $this->getSpeciesImage($config);
+      $speciesImage = $this->getSpeciesImage($config, 'internal');
       // Executes onfly if image exists
       if(!empty($speciesImage)) {
         // References to species image file
         $speciesImage = new File($speciesImage);
         // Full path to Orcae's images folder
-        $orcaeSpeciesImage = Configure::read('OrcaeUpload.orcaeWeb') . DS . 'app' . DS . 'webroot' . DS . 'img' . DS . $speciesImage->name();
+        $orcaeSpeciesImage = Configure::read('OrcaeUpload.orcaeWeb') . DS . 'app' . DS . 'webroot' . DS . 'img' . DS . $config['species_5code'] . '.' . $speciesImage->ext();
+        debug($orcaeSpeciesImage);
         // Copies species image to Orcae's folder
         $speciesImage->copy($orcaeSpeciesImage);
       }
@@ -358,7 +534,7 @@ class GenomeConfig extends AppModel {
         $yaml[$shortname]['current'],
         array(
           'password'  => $db['password'],
-          'database'  => $db['database'],
+          'database'  => $config['database'],
           'port'      => (int)$db['port'],
           'hostname'  => $db['host'],
           'username'  => $db['login']
@@ -367,13 +543,34 @@ class GenomeConfig extends AppModel {
 
       // Creates a reference to old configuration file
       $oldFile = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', true);
-      debug($oldFile);
       // Parses file into .yaml format
       $oldYaml = Spyc::YAMLLoad($oldFile->read());
       // Adds newly created configuration section
       $oldYaml = array_merge($oldYaml, $yaml);
+      debug($oldYaml);
       // Saves updated yaml file
       return $oldFile->write(Spyc::YAMLDump($oldYaml, false, 0));
+    }
+
+    // Reads orcae conf .yaml file
+    // Returns file's content as associative array
+    public function readConfigYaml() {
+      // Defines a file stream
+      $file = new File(Configure::read('OrcaeUpload.orcaeConfig') . DS . 'orcae_conf.yaml', false);
+
+      // Checks if file exists
+      if(!$file->exists()) {
+        return false;
+      }
+
+      // Reads file content
+      $yaml = $file->read();
+
+      // Parses file content into yaml
+      $yaml = Spyc::YAMLLoad($file);
+
+      // Returns file content
+      return $yaml;
     }
 }
 ?>
