@@ -45,7 +45,7 @@ function createTableRow(row, index) {
 
   // Handles row deletion
   $row.on('click', '.update-delete', function(e) {
-    deleteTableRow(row, index);
+    deleteTableRow(row, index, $row);
   });
 
   // Creates a new instance of genome update checker
@@ -79,12 +79,11 @@ function createTableRow(row, index) {
   return $row;
 }
 
-function deleteTableRow(row, index) {
+function deleteTableRow(config, index, row) {
   // Uses index to retrieve correct row
-  var $row = $($('#genome-configs').find('tr').get(index));
-
+  var $row = $(row);
   // Case status is 'updating'
-  if(row.last_update && row.last_update == 'updating') {
+  if(config.last_update && config.last_update == 'updating') {
     // Does nothing
     return;
   }
@@ -117,7 +116,7 @@ function deleteTableRow(row, index) {
   .on('click', '.delete', function(e) {
     // Sends json message to APIs
     $.ajax({
-      url: Defaults.apiRoot + 'genome_configs/' + row.id,
+      url: Defaults.apiRoot + 'genome_configs/' + config.id,
       method: 'DELETE',
       dataType: 'json'
     })

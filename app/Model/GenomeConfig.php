@@ -79,7 +79,7 @@ class GenomeConfig extends AppModel {
       // Deletes updates' files
       foreach($config['updates'] as &$update) {
         // Delete the whole folder which contains updates
-        $folder = $genomeUpdate->getUpdatePath($config['user_id'], $update['id']);
+        $folder = $GenomeUpdate->getUpdatePath($config['user_id'], $update['id']);
         // Creates folder
         $folder = new Folder($folder, false);
         // Checks if folder exists
