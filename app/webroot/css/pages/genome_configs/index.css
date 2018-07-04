@@ -11,8 +11,28 @@
  */
 #genome-configs .update-status,
 #genome-configs .update-status:hover {
+  color: inherit;
   text-decoration: none;
   cursor: default;
+}
+/* Row with successful update */
+#genome-configs .update-success {
+  color: #007bff !important;
+  opacity: .65;
+}
+/* Row to be deleted */
+#genome-configs .update-alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+  text-align: right;
+}
+#genome-configs .update-alert-danger .cancel {
+  color: #721c24;
+  font-weight: bold;
+}
+#genome-configs .update-alert-danger .delete {
+  color: #dc3545 !important;
+  font-weight: bold;
 }
 
 /**

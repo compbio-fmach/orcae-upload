@@ -28,7 +28,10 @@ class ApiGenomeUploadsController extends ApiController {
   // Licensed under MIT
   public function index($id = null, $name = null) {
     // Fakes genome configuration passing only the id
-    $this->GenomeUpload->set_genome_config(array('id' => $id));
+    $this->GenomeUpload->set_genome_config(array(
+      'id' => $id,
+      'user_id' => $this->Auth->user('id')
+    ));
     // Handles request method
     switch ($this->request->method()) {
 		    case 'HEAD':

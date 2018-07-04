@@ -33,14 +33,14 @@ class GenomeUpdateShell extends AppShell {
     // Initializes update istance
     $this->initUpdate();
 
-    // Configures Orcae for genome update
-    $this->initConfig();
     // Creates update folder
     $this->createUpdateFolder();
     // Parses files into .cvs format
     $this->parseUpdateFolder();
     // Parses uploaded files into .csv and loads them into orcae_<5code> database
     $this->loadUpdateFolder();
+    // Configures Orcae for genome update (writes config files)
+    $this->initConfig();
     // Saves configuration into orcae_bogas database
     $this->saveConfig();
 
@@ -142,12 +142,15 @@ class GenomeUpdateShell extends AppShell {
 
   // Saves genome configuration into database
   protected function saveConfig() {
-    if($this->GenomeUpdate->saveConfig($this->update) !== true) {
-      $this->error('no-config', 'Could not update Orcae\'s species');
+    // Executed only if type is 'insert'
+    if($this->update['config']['type'] == 'insert') {
+      if($this->GenomeUpdate->saveConfig($this->update) !== true) {
+        $this->error('no-config', 'Could not update Orcae\'s species');
+      }
     }
   }
 
-   public function error($title, $message = null) {
+  public function error($title, $message = null) {
     // Updates update status
     if($this->update['id']) {
       $this->GenomeUpdate->updateStatus($this->update, 'failure');
